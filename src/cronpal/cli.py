@@ -37,13 +37,14 @@ def main(args=None):
             # Create a CronExpression object
             cron_expr = CronExpression(parsed_args.expression)
 
-            # Parse fields if not a special expression
+            # Parse all fields if not a special expression
             if len(fields) == 5:
                 field_parser = FieldParser()
                 cron_expr.minute = field_parser.parse_minute(fields[0])
                 cron_expr.hour = field_parser.parse_hour(fields[1])
                 cron_expr.day_of_month = field_parser.parse_day_of_month(fields[2])
                 cron_expr.month = field_parser.parse_month(fields[3])
+                cron_expr.day_of_week = field_parser.parse_day_of_week(fields[4])
 
             print(f"✓ Valid cron expression: {cron_expr}")
 
@@ -71,6 +72,12 @@ def main(args=None):
                     if cron_expr.month.parsed_values:
                         _print_field_values("    ", cron_expr.month.parsed_values)
                         _print_month_names("    ", cron_expr.month.parsed_values)
+
+                if cron_expr.day_of_week:
+                    print(f"  Day of week field: {cron_expr.day_of_week.raw_value}")
+                    if cron_expr.day_of_week.parsed_values:
+                        _print_field_values("    ", cron_expr.day_of_week.parsed_values)
+                        _print_day_names("    ", cron_expr.day_of_week.parsed_values)
 
             return 0
 
@@ -127,6 +134,23 @@ def _print_month_names(prefix: str, values: set):
 
     if len(names) <= 10:
         print(f"{prefix}Months: {', '.join(names)}")
+
+
+def _print_day_names(prefix: str, values: set):
+    """
+    Print day names for day of week values.
+
+    Args:
+        prefix: Prefix for each line.
+        values: Set of day numbers to convert to names.
+    """
+    day_names = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
+
+    sorted_values = sorted(values)
+    names = [day_names[v] for v in sorted_values if 0 <= v <= 6]
+
+    if len(names) <= 7:
+        print(f"{prefix}Days: {', '.join(names)}")
 
 
 if __name__ == "__main__":

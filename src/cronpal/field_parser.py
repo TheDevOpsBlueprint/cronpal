@@ -2,7 +2,7 @@
 
 from typing import List, Set
 
-from cronpal.constants import MONTH_NAMES, WILDCARD
+from cronpal.constants import DAY_NAMES, MONTH_NAMES, WILDCARD
 from cronpal.exceptions import FieldError, ParseError
 from cronpal.models import CronField, FieldRange, FieldType, FIELD_RANGES
 
@@ -149,6 +149,48 @@ class FieldParser:
         except (ParseError, ValueError) as e:
             raise FieldError("month", str(e))
 
+    def parse_day_of_week(self, field_value: str) -> CronField:
+        """
+        Parse the day of week field of a cron expression.
+
+        Args:
+            field_value: The day field string (e.g., "0", "MON", "MON-FRI").
+
+        Returns:
+            CronField object with parsed values.
+
+        Raises:
+            FieldError: If the field value is invalid.
+        """
+        field_type = FieldType.DAY_OF_WEEK
+        field_range = FIELD_RANGES[field_type]
+
+        try:
+            # Replace day names with numbers
+            normalized = self._normalize_day_names(field_value)
+
+            parsed_values = self._parse_field(
+                normalized,
+                field_range,
+                "day of week"
+            )
+
+            # Handle Sunday as both 0 and 7
+            if 7 in parsed_values:
+                parsed_values.add(0)
+                parsed_values.remove(7)
+
+            field = CronField(
+                raw_value=field_value,
+                field_type=field_type,
+                field_range=field_range
+            )
+            field.parsed_values = parsed_values
+            return field
+
+        except (ParseError, ValueError) as e:
+            raise FieldError("day of week", str(e))
+
     def _normalize_month_names(self, field_value: str) -> str:
         """
         Replace month names with their numeric values.
@@ -163,6 +205,24 @@ class FieldParser:
 
         # Replace month names with numbers
         for name, number in MONTH_NAMES.items():
+            normalized = normalized.replace(name, str(number))
+
+        return normalized
+
+    def _normalize_day_names(self, field_value: str) -> str:
+        """
+        Replace day names with their numeric values.
+
+        Args:
+            field_value: The field value possibly containing day names.
+
+        Returns:
+            Field value with day names replaced by numbers.
+        """
+        normalized = field_value.upper()
+
+        # Replace day names with numbers
+        for name, number in DAY_NAMES.items():
             normalized = normalized.replace(name, str(number))
 
         return normalized
@@ -200,18 +260,45 @@ class FieldParser:
         for part in field_value.split(","):
             part = part.strip()
 
+            # Skip empty parts
+            if not part:
+                continue
+
+            # Handle wildcards in lists (e.g., "*,*")
+            if part == WILDCARD:
+                return set(range(field_range.min_value, field_range.max_value + 1))
+
             if "/" in part:
                 # Handle step values (e.g., "*/5" or "0-30/5")
                 values.update(self._parse_step(part, field_range, field_name))
-            elif "-" in part:
+            elif "-" in part and not self._is_negative_number(part):
                 # Handle ranges (e.g., "0-30")
                 values.update(self._parse_range(part, field_range, field_name))
             else:
-                # Handle single values
+                # Handle single values (including negative numbers)
                 value = self._parse_single(part, field_range, field_name)
                 values.add(value)
 
         return values
+
+    def _is_negative_number(self, value_str: str) -> bool:
+        """
+        Check if a string represents a negative number.
+
+        Args:
+            value_str: The string to check.
+
+        Returns:
+            True if the string is a negative number like "-1".
+        """
+        # Check if it starts with minus and the rest is a number
+        if value_str.startswith("-") and len(value_str) > 1:
+            try:
+                int(value_str)
+                return True
+            except ValueError:
+                return False
+        return False
 
     def _parse_single(
         self,

@@ -571,3 +571,143 @@ class TestParseMonth:
         # Invalid names should pass through and fail as invalid numbers
         with pytest.raises(FieldError, match="not a number"):
             self.parser.parse_month("JANUARY")
+
+
+class TestParseDayOfWeek:
+    """Tests for parsing day of week field."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.parser = FieldParser()
+
+    def test_parse_single_day_of_week(self):
+        """Test parsing a single day of week value."""
+        field = self.parser.parse_day_of_week("1")
+        assert field.raw_value == "1"
+        assert field.field_type == FieldType.DAY_OF_WEEK
+        assert field.parsed_values == {1}
+
+    def test_parse_day_of_week_wildcard(self):
+        """Test parsing day of week wildcard."""
+        field = self.parser.parse_day_of_week("*")
+        assert field.raw_value == "*"
+        # Should have 0-6 (not 7, as 7 is converted to 0)
+        assert field.parsed_values == set(range(0, 7))
+        assert len(field.parsed_values) == 7
+
+    def test_parse_day_of_week_range(self):
+        """Test parsing day of week range."""
+        field = self.parser.parse_day_of_week("1-5")
+        assert field.parsed_values == {1, 2, 3, 4, 5}
+
+    def test_parse_day_of_week_list(self):
+        """Test parsing day of week list."""
+        field = self.parser.parse_day_of_week("0,3,6")
+        assert field.parsed_values == {0, 3, 6}
+
+    def test_parse_day_of_week_sunday_as_zero(self):
+        """Test parsing Sunday as 0."""
+        field = self.parser.parse_day_of_week("0")
+        assert field.parsed_values == {0}
+
+    def test_parse_day_of_week_sunday_as_seven(self):
+        """Test parsing Sunday as 7 (should be converted to 0)."""
+        field = self.parser.parse_day_of_week("7")
+        assert field.parsed_values == {0}
+
+    def test_parse_day_of_week_name_sun(self):
+        """Test parsing SUN day name."""
+        field = self.parser.parse_day_of_week("SUN")
+        assert field.parsed_values == {0}
+
+    def test_parse_day_of_week_name_mon(self):
+        """Test parsing MON day name."""
+        field = self.parser.parse_day_of_week("MON")
+        assert field.parsed_values == {1}
+
+    def test_parse_day_of_week_name_sat(self):
+        """Test parsing SAT day name."""
+        field = self.parser.parse_day_of_week("SAT")
+        assert field.parsed_values == {6}
+
+    def test_parse_day_of_week_name_range(self):
+        """Test parsing day name range."""
+        field = self.parser.parse_day_of_week("MON-FRI")
+        assert field.parsed_values == {1, 2, 3, 4, 5}
+
+    def test_parse_day_of_week_name_list(self):
+        """Test parsing day name list."""
+        field = self.parser.parse_day_of_week("SUN,WED,FRI")
+        assert field.parsed_values == {0, 3, 5}
+
+    def test_parse_day_of_week_name_mixed(self):
+        """Test parsing mixed day names and numbers."""
+        field = self.parser.parse_day_of_week("0,MON,3,FRI")
+        assert field.parsed_values == {0, 1, 3, 5}
+
+    def test_parse_day_of_week_name_lowercase(self):
+        """Test parsing lowercase day names."""
+        field = self.parser.parse_day_of_week("mon,wed,fri")
+        assert field.parsed_values == {1, 3, 5}
+
+    def test_parse_day_of_week_name_mixed_case(self):
+        """Test parsing mixed case day names."""
+        field = self.parser.parse_day_of_week("Mon,Wed,Fri")
+        assert field.parsed_values == {1, 3, 5}
+
+    def test_parse_day_of_week_weekdays(self):
+        """Test parsing weekdays."""
+        field = self.parser.parse_day_of_week("1-5")
+        assert field.parsed_values == {1, 2, 3, 4, 5}
+
+    def test_parse_day_of_week_weekend(self):
+        """Test parsing weekend days."""
+        field = self.parser.parse_day_of_week("SUN,SAT")
+        assert field.parsed_values == {0, 6}
+
+    def test_parse_day_of_week_step(self):
+        """Test parsing day of week with step."""
+        field = self.parser.parse_day_of_week("1/2")
+        # Should give 1, 3, 5 (Mon, Wed, Fri)
+        assert field.parsed_values == {1, 3, 5}
+
+    def test_parse_day_of_week_out_of_range_high(self):
+        """Test parsing day value too high."""
+        with pytest.raises(FieldError, match="day of week.*out of range"):
+            self.parser.parse_day_of_week("8")
+
+    def test_parse_day_of_week_out_of_range_low(self):
+        """Test parsing negative day value."""
+        with pytest.raises(FieldError, match="day of week.*out of range"):
+            self.parser.parse_day_of_week("-1")
+
+    def test_parse_day_of_week_invalid_name(self):
+        """Test parsing invalid day name."""
+        with pytest.raises(FieldError, match="not a number"):
+            self.parser.parse_day_of_week("MONDAY")
+
+    def test_parse_day_of_week_empty(self):
+        """Test parsing empty day of week field."""
+        with pytest.raises(FieldError, match="Empty"):
+            self.parser.parse_day_of_week("")
+
+    def test_parse_day_of_week_all_names(self):
+        """Test parsing all day names."""
+        field = self.parser.parse_day_of_week("SUN,MON,TUE,WED,THU,FRI,SAT")
+        assert field.parsed_values == {0, 1, 2, 3, 4, 5, 6}
+
+    def test_parse_day_of_week_duplicates_removed(self):
+        """Test that duplicate day values are removed."""
+        field = self.parser.parse_day_of_week("0,0,1,1,7")  # 7 becomes 0
+        assert field.parsed_values == {0, 1}
+
+    def test_parse_day_of_week_range_with_sunday(self):
+        """Test range that includes Sunday as 7."""
+        field = self.parser.parse_day_of_week("5-7")
+        # 5, 6, 7 where 7 becomes 0
+        assert field.parsed_values == {0, 5, 6}
+
+    def test_parse_day_of_week_list_with_seven(self):
+        """Test list with 7 (Sunday)."""
+        field = self.parser.parse_day_of_week("1,3,5,7")
+        assert field.parsed_values == {0, 1, 3, 5}

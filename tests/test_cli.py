@@ -556,3 +556,235 @@ def test_all_four_fields_parsing():
     assert "Day of month field: 15" in output
     assert "Month field: JAN-MAR" in output
     assert "Months: Jan, Feb, Mar" in output
+
+
+def test_day_of_week_field_parsing():
+    """Test that day of week field is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * 1", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: 1" in output
+    assert "Values: [1]" in output
+    assert "Days: Mon" in output
+
+
+def test_day_of_week_field_name_parsing():
+    """Test that day of week field with names is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * MON", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: MON" in output
+    assert "Values: [1]" in output
+    assert "Days: Mon" in output
+
+
+def test_day_of_week_field_range_parsing():
+    """Test parsing day of week field with range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * 1-5", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: 1-5" in output
+    assert "Values: [1, 2, 3, 4, 5]" in output
+    assert "Days: Mon, Tue, Wed, Thu, Fri" in output
+
+
+def test_day_of_week_field_name_range_parsing():
+    """Test parsing day of week field with name range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * MON-FRI", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: MON-FRI" in output
+    assert "Values: [1, 2, 3, 4, 5]" in output
+    assert "Days: Mon, Tue, Wed, Thu, Fri" in output
+
+
+def test_day_of_week_field_list_parsing():
+    """Test parsing day of week field with list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * 0,3,6", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: 0,3,6" in output
+    assert "Values: [0, 3, 6]" in output
+    assert "Days: Sun, Wed, Sat" in output
+
+
+def test_day_of_week_field_name_list_parsing():
+    """Test parsing day of week field with name list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * SUN,WED,SAT", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: SUN,WED,SAT" in output
+    assert "Values: [0, 3, 6]" in output
+    assert "Days: Sun, Wed, Sat" in output
+
+
+def test_day_of_week_field_wildcard_parsing():
+    """Test parsing day of week field with wildcard."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: *" in output
+    # Should show all 7 days
+    assert "Values: [0, 1, 2, 3, 4, 5, 6]" in output
+    assert "Days: Sun, Mon, Tue, Wed, Thu, Fri, Sat" in output
+
+
+def test_day_of_week_sunday_as_seven():
+    """Test that Sunday as 7 is converted to 0."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * 7", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: 7" in output
+    assert "Values: [0]" in output
+    assert "Days: Sun" in output
+
+
+def test_day_of_week_field_invalid_value_high():
+    """Test invalid day of week value (8)."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 * * 8"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "day of week" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
+def test_day_of_week_field_invalid_value_low():
+    """Test invalid day of week value (-1)."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 * * -1"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "day of week" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
+def test_day_of_week_field_invalid_name():
+    """Test invalid day name."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 * * MONDAY"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "day of week" in error_output.lower()
+    assert "not a number" in error_output.lower()
+
+
+def test_day_of_week_field_mixed_parsing():
+    """Test parsing day of week field with mixed names and numbers."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * 0,MON,3,FRI", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of week field: 0,MON,3,FRI" in output
+    assert "Values: [0, 1, 3, 5]" in output
+    assert "Days: Sun, Mon, Wed, Fri" in output
+
+
+def test_all_five_fields_parsing():
+    """Test parsing all five fields with names."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["30 2 15 JAN MON-FRI", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: 30" in output
+    assert "Hour field: 2" in output
+    assert "Day of month field: 15" in output
+    assert "Month field: JAN" in output
+    assert "Months: Jan" in output
+    assert "Day of week field: MON-FRI" in output
+    assert "Days: Mon, Tue, Wed, Thu, Fri" in output
+
+
+def test_complete_expression_validation():
+    """Test that complete expression validates properly."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["*/15 9-17 1,15 * MON-FRI", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "✓ Valid cron expression" in output
+    assert "Minute field: */15" in output
+    assert "Hour field: 9-17" in output
+    assert "Day of month field: 1,15" in output
+    assert "Month field: *" in output
+    assert "Day of week field: MON-FRI" in output
