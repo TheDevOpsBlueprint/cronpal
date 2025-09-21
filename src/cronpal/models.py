@@ -1,0 +1,73 @@
+"""Data models for cron expressions."""
+
+from dataclasses import dataclass
+from enum import Enum
+from typing import Optional
+
+
+class FieldType(Enum):
+    """Enum for different cron field types."""
+
+    MINUTE = "minute"
+    HOUR = "hour"
+    DAY_OF_MONTH = "day_of_month"
+    MONTH = "month"
+    DAY_OF_WEEK = "day_of_week"
+
+
+@dataclass
+class FieldRange:
+    """Represents the valid range for a cron field."""
+
+    min_value: int
+    max_value: int
+    field_type: FieldType
+
+
+@dataclass
+class CronField:
+    """Represents a single field in a cron expression."""
+
+    raw_value: str
+    field_type: FieldType
+    field_range: FieldRange
+
+    def __str__(self) -> str:
+        """String representation of the field."""
+        return self.raw_value
+
+
+@dataclass
+class CronExpression:
+    """Represents a complete cron expression."""
+
+    raw_expression: str
+    minute: Optional[CronField] = None
+    hour: Optional[CronField] = None
+    day_of_month: Optional[CronField] = None
+    month: Optional[CronField] = None
+    day_of_week: Optional[CronField] = None
+
+    def __str__(self) -> str:
+        """String representation of the cron expression."""
+        return self.raw_expression
+
+    def is_valid(self) -> bool:
+        """Check if all required fields are present."""
+        return all([
+            self.minute is not None,
+            self.hour is not None,
+            self.day_of_month is not None,
+            self.month is not None,
+            self.day_of_week is not None
+        ])
+
+
+# Define valid ranges for each field type
+FIELD_RANGES = {
+    FieldType.MINUTE: FieldRange(0, 59, FieldType.MINUTE),
+    FieldType.HOUR: FieldRange(0, 23, FieldType.HOUR),
+    FieldType.DAY_OF_MONTH: FieldRange(1, 31, FieldType.DAY_OF_MONTH),
+    FieldType.MONTH: FieldRange(1, 12, FieldType.MONTH),
+    FieldType.DAY_OF_WEEK: FieldRange(0, 7, FieldType.DAY_OF_WEEK),
+}

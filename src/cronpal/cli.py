@@ -3,6 +3,7 @@
 
 import sys
 
+from cronpal.models import CronExpression
 from cronpal.parser import create_parser
 
 
@@ -17,9 +18,16 @@ def main(args=None):
         print(f"cronpal {__version__}")
         return 0
 
-    # Handle cron expression (placeholder for now)
+    # Handle cron expression
     if parsed_args.expression:
-        print(f"Parsing cron expression: {parsed_args.expression}")
+        # Create a CronExpression object
+        cron_expr = CronExpression(parsed_args.expression)
+        print(f"Parsing cron expression: {cron_expr}")
+
+        if parsed_args.verbose:
+            print(f"Raw expression: {cron_expr.raw_expression}")
+            print(f"Valid: {cron_expr.is_valid()}")
+
         return 0
 
     # If no arguments provided, show help
