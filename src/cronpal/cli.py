@@ -3,8 +3,10 @@
 
 import sys
 
+from cronpal.exceptions import CronPalError
 from cronpal.models import CronExpression
 from cronpal.parser import create_parser
+from cronpal.validators import validate_expression
 
 
 def main(args=None):
@@ -20,15 +22,25 @@ def main(args=None):
 
     # Handle cron expression
     if parsed_args.expression:
-        # Create a CronExpression object
-        cron_expr = CronExpression(parsed_args.expression)
-        print(f"Parsing cron expression: {cron_expr}")
+        try:
+            # Validate the expression first
+            validate_expression(parsed_args.expression)
 
-        if parsed_args.verbose:
-            print(f"Raw expression: {cron_expr.raw_expression}")
-            print(f"Valid: {cron_expr.is_valid()}")
+            # Create a CronExpression object
+            cron_expr = CronExpression(parsed_args.expression)
+            print(f"✓ Valid cron expression: {cron_expr}")
 
-        return 0
+            if parsed_args.verbose:
+                print(f"Raw expression: {cron_expr.raw_expression}")
+                print(f"Validation: PASSED")
+
+            return 0
+
+        except CronPalError as e:
+            print(f"✗ Invalid cron expression: {e}", file=sys.stderr)
+            if parsed_args.verbose:
+                print(f"Expression: {parsed_args.expression}", file=sys.stderr)
+            return 1
 
     # If no arguments provided, show help
     parser.print_help()

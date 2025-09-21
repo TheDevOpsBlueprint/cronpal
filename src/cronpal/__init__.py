@@ -4,12 +4,26 @@ __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 
+from cronpal.exceptions import (
+    CronPalError,
+    FieldError,
+    InvalidCronExpression,
+    ParseError,
+    ValidationError,
+)
 from cronpal.models import CronExpression, CronField, FieldType
 from cronpal.parser import create_parser
+from cronpal.validators import validate_expression
 
 __all__ = [
     "create_parser",
     "CronExpression",
     "CronField",
     "FieldType",
+    "validate_expression",
+    "CronPalError",
+    "InvalidCronExpression",
+    "ValidationError",
+    "ParseError",
+    "FieldError",
 ]
