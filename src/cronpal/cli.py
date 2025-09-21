@@ -43,6 +43,7 @@ def main(args=None):
                 cron_expr.minute = field_parser.parse_minute(fields[0])
                 cron_expr.hour = field_parser.parse_hour(fields[1])
                 cron_expr.day_of_month = field_parser.parse_day_of_month(fields[2])
+                cron_expr.month = field_parser.parse_month(fields[3])
 
             print(f"✓ Valid cron expression: {cron_expr}")
 
@@ -64,6 +65,12 @@ def main(args=None):
                     print(f"  Day of month field: {cron_expr.day_of_month.raw_value}")
                     if cron_expr.day_of_month.parsed_values:
                         _print_field_values("    ", cron_expr.day_of_month.parsed_values)
+
+                if cron_expr.month:
+                    print(f"  Month field: {cron_expr.month.raw_value}")
+                    if cron_expr.month.parsed_values:
+                        _print_field_values("    ", cron_expr.month.parsed_values)
+                        _print_month_names("    ", cron_expr.month.parsed_values)
 
             return 0
 
@@ -102,6 +109,24 @@ def _print_field_values(prefix: str, values: set):
     else:
         print(f"{prefix}Values: {sorted_values[:5]} ... {sorted_values[-5:]}")
         print(f"{prefix}Total: {len(sorted_values)} values")
+
+
+def _print_month_names(prefix: str, values: set):
+    """
+    Print month names for month values.
+
+    Args:
+        prefix: Prefix for each line.
+        values: Set of month numbers to convert to names.
+    """
+    month_names = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
+                   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"]
+
+    sorted_values = sorted(values)
+    names = [month_names[v - 1] for v in sorted_values if 1 <= v <= 12]
+
+    if len(names) <= 10:
+        print(f"{prefix}Months: {', '.join(names)}")
 
 
 if __name__ == "__main__":

@@ -346,3 +346,213 @@ def test_special_string():
     assert result == 0
     assert "✓ Valid" in output
     assert "@daily" in output
+
+
+def test_month_field_parsing():
+    """Test that month field is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 6 *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: 6" in output
+    assert "Values: [6]" in output
+    assert "Months: Jun" in output
+
+
+def test_month_field_name_parsing():
+    """Test that month field with names is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 JAN *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: JAN" in output
+    assert "Values: [1]" in output
+    assert "Months: Jan" in output
+
+
+def test_month_field_range_parsing():
+    """Test parsing month field with range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 1-3 *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: 1-3" in output
+    assert "Values: [1, 2, 3]" in output
+    assert "Months: Jan, Feb, Mar" in output
+
+
+def test_month_field_name_range_parsing():
+    """Test parsing month field with name range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 JAN-MAR *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: JAN-MAR" in output
+    assert "Values: [1, 2, 3]" in output
+    assert "Months: Jan, Feb, Mar" in output
+
+
+def test_month_field_list_parsing():
+    """Test parsing month field with list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 1,6,12 *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: 1,6,12" in output
+    assert "Values: [1, 6, 12]" in output
+    assert "Months: Jan, Jun, Dec" in output
+
+
+def test_month_field_name_list_parsing():
+    """Test parsing month field with name list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 JAN,JUN,DEC *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: JAN,JUN,DEC" in output
+    assert "Values: [1, 6, 12]" in output
+    assert "Months: Jan, Jun, Dec" in output
+
+
+def test_month_field_step_parsing():
+    """Test parsing month field with step."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 */3 *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: */3" in output
+    assert "Values: [1, 4, 7, 10]" in output
+    assert "Months: Jan, Apr, Jul, Oct" in output
+
+
+def test_month_field_wildcard_parsing():
+    """Test parsing month field with wildcard."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: *" in output
+    # Should show all 12 months
+    assert "Total: 12 values" in output
+
+
+def test_month_field_invalid_value_zero():
+    """Test invalid month field value (0)."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 1 0 *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "month" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
+def test_month_field_invalid_value_high():
+    """Test invalid month field value (13)."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 1 13 *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "month" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
+def test_month_field_invalid_name():
+    """Test invalid month name."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 1 JANUARY *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "month" in error_output.lower()
+    assert "not a number" in error_output.lower()
+
+
+def test_month_field_mixed_parsing():
+    """Test parsing month field with mixed names and numbers."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 1 1,FEB,3,APR *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Month field: 1,FEB,3,APR" in output
+    assert "Values: [1, 2, 3, 4]" in output
+    assert "Months: Jan, Feb, Mar, Apr" in output
+
+
+def test_all_four_fields_parsing():
+    """Test parsing minute, hour, day, and month fields."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["30 2 15 JAN-MAR *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: 30" in output
+    assert "Hour field: 2" in output
+    assert "Day of month field: 15" in output
+    assert "Month field: JAN-MAR" in output
+    assert "Months: Jan, Feb, Mar" in output
