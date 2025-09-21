@@ -236,6 +236,121 @@ class TestParseHour:
         assert field.parsed_values == {0, 12}
 
 
+class TestParseDayOfMonth:
+    """Tests for parsing day of month field."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.parser = FieldParser()
+
+    def test_parse_single_day(self):
+        """Test parsing a single day value."""
+        field = self.parser.parse_day_of_month("1")
+        assert field.raw_value == "1"
+        assert field.field_type == FieldType.DAY_OF_MONTH
+        assert field.parsed_values == {1}
+
+    def test_parse_day_wildcard(self):
+        """Test parsing day wildcard."""
+        field = self.parser.parse_day_of_month("*")
+        assert field.raw_value == "*"
+        assert field.parsed_values == set(range(1, 32))
+        assert len(field.parsed_values) == 31
+
+    def test_parse_day_range(self):
+        """Test parsing day range."""
+        field = self.parser.parse_day_of_month("1-7")
+        assert field.parsed_values == {1, 2, 3, 4, 5, 6, 7}
+
+    def test_parse_day_list(self):
+        """Test parsing day list."""
+        field = self.parser.parse_day_of_month("1,15,31")
+        assert field.parsed_values == {1, 15, 31}
+
+    def test_parse_day_step_wildcard(self):
+        """Test parsing day step with wildcard."""
+        field = self.parser.parse_day_of_month("*/5")
+        assert field.parsed_values == {1, 6, 11, 16, 21, 26, 31}
+
+    def test_parse_day_step_range(self):
+        """Test parsing day step with range."""
+        field = self.parser.parse_day_of_month("1-15/3")
+        assert field.parsed_values == {1, 4, 7, 10, 13}
+
+    def test_parse_day_complex(self):
+        """Test parsing complex day expression."""
+        field = self.parser.parse_day_of_month("1-5,15,20-25/2")
+        expected = {1, 2, 3, 4, 5, 15, 20, 22, 24}
+        assert field.parsed_values == expected
+
+    def test_parse_day_max_value(self):
+        """Test parsing maximum day value."""
+        field = self.parser.parse_day_of_month("31")
+        assert field.parsed_values == {31}
+
+    def test_parse_day_out_of_range_high(self):
+        """Test parsing day value too high."""
+        with pytest.raises(FieldError, match="day of month.*out of range"):
+            self.parser.parse_day_of_month("32")
+
+    def test_parse_day_out_of_range_low(self):
+        """Test parsing day value too low."""
+        with pytest.raises(FieldError, match="day of month.*out of range"):
+            self.parser.parse_day_of_month("0")
+
+    def test_parse_day_invalid_range(self):
+        """Test parsing invalid day range."""
+        with pytest.raises(FieldError, match="start.*>.*end"):
+            self.parser.parse_day_of_month("20-10")
+
+    def test_parse_day_invalid_step(self):
+        """Test parsing invalid day step."""
+        with pytest.raises(FieldError, match="Step value must be positive"):
+            self.parser.parse_day_of_month("*/0")
+
+    def test_parse_day_non_numeric(self):
+        """Test parsing non-numeric day value."""
+        with pytest.raises(FieldError, match="not a number"):
+            self.parser.parse_day_of_month("first")
+
+    def test_parse_day_empty(self):
+        """Test parsing empty day field."""
+        with pytest.raises(FieldError, match="Empty"):
+            self.parser.parse_day_of_month("")
+
+    def test_parse_day_first_week(self):
+        """Test parsing first week of month."""
+        field = self.parser.parse_day_of_month("1-7")
+        assert field.parsed_values == {1, 2, 3, 4, 5, 6, 7}
+
+    def test_parse_day_biweekly(self):
+        """Test parsing bi-weekly pattern."""
+        field = self.parser.parse_day_of_month("1,15")
+        assert field.parsed_values == {1, 15}
+
+    def test_parse_day_every_other_day(self):
+        """Test parsing every other day."""
+        field = self.parser.parse_day_of_month("*/2")
+        expected = {1, 3, 5, 7, 9, 11, 13, 15, 17, 19, 21, 23, 25, 27, 29, 31}
+        assert field.parsed_values == expected
+
+    def test_parse_day_step_from_single(self):
+        """Test parsing step from single day value."""
+        field = self.parser.parse_day_of_month("5/5")
+        # Should give 5, 10, 15, 20, 25, 30
+        assert field.parsed_values == {5, 10, 15, 20, 25, 30}
+
+    def test_parse_day_end_of_month(self):
+        """Test parsing end of month days."""
+        field = self.parser.parse_day_of_month("28-31")
+        assert field.parsed_values == {28, 29, 30, 31}
+
+    def test_parse_day_duplicates_removed(self):
+        """Test that duplicate day values are removed."""
+        field = self.parser.parse_day_of_month("1,1,15,15")
+        assert field.parsed_values == {1, 15}
+
+
 class TestFieldParserInternals:
     """Tests for internal parsing methods."""
 
@@ -245,6 +360,7 @@ class TestFieldParserInternals:
         from cronpal.models import FIELD_RANGES
         self.minute_range = FIELD_RANGES[FieldType.MINUTE]
         self.hour_range = FIELD_RANGES[FieldType.HOUR]
+        self.day_range = FIELD_RANGES[FieldType.DAY_OF_MONTH]
 
     def test_parse_single_valid(self):
         """Test _parse_single with valid value."""
@@ -298,3 +414,10 @@ class TestFieldParserInternals:
         assert min(result) == 0
         assert max(result) == 23
         assert len(result) == 24
+
+    def test_day_range_boundaries(self):
+        """Test day of month range boundaries."""
+        result = self.parser._parse_field("*", self.day_range, "day")
+        assert min(result) == 1
+        assert max(result) == 31
+        assert len(result) == 31
