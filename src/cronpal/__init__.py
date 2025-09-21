@@ -4,6 +4,7 @@ __version__ = "0.1.0"
 __author__ = "Your Name"
 __email__ = "your.email@example.com"
 
+from cronpal.error_handler import ErrorHandler, suggest_fix
 from cronpal.exceptions import (
     CronPalError,
     FieldError,
@@ -26,4 +27,6 @@ __all__ = [
     "ValidationError",
     "ParseError",
     "FieldError",
+    "ErrorHandler",
+    "suggest_fix",
 ]
