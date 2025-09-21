@@ -42,6 +42,16 @@ def test_cron_field_creation():
     assert field.raw_value == "*/5"
     assert field.field_type == FieldType.MINUTE
     assert field.field_range == field_range
+    assert field.parsed_values is None
+
+
+def test_cron_field_with_parsed_values():
+    """Test CronField with parsed values."""
+    field_range = FieldRange(0, 59, FieldType.MINUTE)
+    field = CronField("0,15,30,45", FieldType.MINUTE, field_range)
+    field.parsed_values = {0, 15, 30, 45}
+
+    assert field.parsed_values == {0, 15, 30, 45}
 
 
 def test_cron_field_str():
@@ -49,6 +59,38 @@ def test_cron_field_str():
     field_range = FieldRange(0, 59, FieldType.MINUTE)
     field = CronField("0", FieldType.MINUTE, field_range)
     assert str(field) == "0"
+
+
+def test_cron_field_is_wildcard():
+    """Test CronField is_wildcard method."""
+    field_range = FieldRange(0, 59, FieldType.MINUTE)
+
+    wildcard_field = CronField("*", FieldType.MINUTE, field_range)
+    assert wildcard_field.is_wildcard() is True
+
+    specific_field = CronField("0", FieldType.MINUTE, field_range)
+    assert specific_field.is_wildcard() is False
+
+    range_field = CronField("0-30", FieldType.MINUTE, field_range)
+    assert range_field.is_wildcard() is False
+
+
+def test_cron_field_matches():
+    """Test CronField matches method."""
+    field_range = FieldRange(0, 59, FieldType.MINUTE)
+    field = CronField("0,15,30,45", FieldType.MINUTE, field_range)
+
+    # Without parsed values
+    assert field.matches(0) is False
+
+    # With parsed values
+    field.parsed_values = {0, 15, 30, 45}
+    assert field.matches(0) is True
+    assert field.matches(15) is True
+    assert field.matches(30) is True
+    assert field.matches(45) is True
+    assert field.matches(5) is False
+    assert field.matches(60) is False
 
 
 def test_cron_expression_creation():
@@ -101,6 +143,26 @@ def test_cron_expression_str():
     """Test CronExpression string representation."""
     expr = CronExpression("*/15 0 1,15 * *")
     assert str(expr) == "*/15 0 1,15 * *"
+
+
+def test_cron_expression_matches_time():
+    """Test CronExpression matches_time method."""
+    expr = CronExpression("0,15,30,45 * * * *")
+
+    # Without minute field
+    assert expr.matches_time(0) is False
+
+    # With minute field
+    minute_field = CronField("0,15,30,45", FieldType.MINUTE, FIELD_RANGES[FieldType.MINUTE])
+    minute_field.parsed_values = {0, 15, 30, 45}
+    expr.minute = minute_field
+
+    assert expr.matches_time(0) is True
+    assert expr.matches_time(15) is True
+    assert expr.matches_time(30) is True
+    assert expr.matches_time(45) is True
+    assert expr.matches_time(5) is False
+    assert expr.matches_time(59) is False
 
 
 def test_field_ranges_constants():

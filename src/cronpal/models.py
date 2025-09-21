@@ -1,8 +1,8 @@
 """Data models for cron expressions."""
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
-from typing import Optional
+from typing import Optional, Set
 
 
 class FieldType(Enum):
@@ -31,10 +31,29 @@ class CronField:
     raw_value: str
     field_type: FieldType
     field_range: FieldRange
+    parsed_values: Optional[Set[int]] = field(default=None)
 
     def __str__(self) -> str:
         """String representation of the field."""
         return self.raw_value
+
+    def is_wildcard(self) -> bool:
+        """Check if this field is a wildcard."""
+        return self.raw_value == "*"
+
+    def matches(self, value: int) -> bool:
+        """
+        Check if a value matches this field.
+
+        Args:
+            value: The value to check.
+
+        Returns:
+            True if the value matches this field.
+        """
+        if self.parsed_values is None:
+            return False
+        return value in self.parsed_values
 
 
 @dataclass
@@ -61,6 +80,20 @@ class CronExpression:
             self.month is not None,
             self.day_of_week is not None
         ])
+
+    def matches_time(self, minute: int) -> bool:
+        """
+        Check if this expression matches a given minute.
+
+        Args:
+            minute: The minute value to check (0-59).
+
+        Returns:
+            True if the minute matches.
+        """
+        if self.minute is None:
+            return False
+        return self.minute.matches(minute)
 
 
 # Define valid ranges for each field type
