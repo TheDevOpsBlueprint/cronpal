@@ -71,6 +71,83 @@ def test_valid_expression():
     assert "0 0 * * *" in output
 
 
+def test_minute_field_parsing():
+    """Test that minute field is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["*/15 0 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: */15" in output
+    assert "Values: [0, 15, 30, 45]" in output
+
+
+def test_minute_field_range_parsing():
+    """Test parsing minute field with range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0-5 0 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: 0-5" in output
+    assert "Values: [0, 1, 2, 3, 4, 5]" in output
+
+
+def test_minute_field_list_parsing():
+    """Test parsing minute field with list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0,15,30,45 0 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: 0,15,30,45" in output
+    assert "Values: [0, 15, 30, 45]" in output
+
+
+def test_minute_field_wildcard_parsing():
+    """Test parsing minute field with wildcard."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["* 0 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: *" in output
+    # Should show truncated list for 60 values
+    assert "Total: 60 values" in output
+
+
+def test_minute_field_invalid_value():
+    """Test invalid minute field value."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["60 0 * * *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "minute" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
 def test_invalid_expression_with_suggestion():
     """Test parsing an invalid expression with suggestion."""
     import io
@@ -118,6 +195,7 @@ def test_verbose_flag_valid():
     assert result == 0
     assert "Raw expression:" in output
     assert "Validation: PASSED" in output
+    assert "Minute field:" in output
 
 
 def test_verbose_flag_invalid():
@@ -211,8 +289,6 @@ def test_too_many_fields():
 
 def test_unexpected_error_handling():
     """Test that unexpected errors return exit code 2."""
-    # This test is tricky to trigger naturally, but we ensure the path exists
-    # The main function catches Exception and returns 2
     import io
     import contextlib
     from unittest.mock import patch
