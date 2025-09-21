@@ -85,7 +85,8 @@ class CronExpression:
         self,
         minute: int,
         hour: Optional[int] = None,
-        day: Optional[int] = None
+        day: Optional[int] = None,
+        month: Optional[int] = None
     ) -> bool:
         """
         Check if this expression matches a given time.
@@ -94,6 +95,7 @@ class CronExpression:
             minute: The minute value to check (0-59).
             hour: The hour value to check (0-23).
             day: The day of month value to check (1-31).
+            month: The month value to check (1-12).
 
         Returns:
             True if the time matches.
@@ -101,17 +103,18 @@ class CronExpression:
         if self.minute is None:
             return False
 
-        minute_match = self.minute.matches(minute)
+        matches = self.minute.matches(minute)
 
         if hour is not None and self.hour is not None:
-            hour_match = self.hour.matches(hour)
-            minute_match = minute_match and hour_match
+            matches = matches and self.hour.matches(hour)
 
         if day is not None and self.day_of_month is not None:
-            day_match = self.day_of_month.matches(day)
-            minute_match = minute_match and day_match
+            matches = matches and self.day_of_month.matches(day)
 
-        return minute_match
+        if month is not None and self.month is not None:
+            matches = matches and self.month.matches(month)
+
+        return matches
 
 
 # Define valid ranges for each field type

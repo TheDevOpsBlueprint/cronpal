@@ -421,3 +421,153 @@ class TestFieldParserInternals:
         assert min(result) == 1
         assert max(result) == 31
         assert len(result) == 31
+
+
+class TestParseMonth:
+    """Tests for parsing month field."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.parser = FieldParser()
+
+    def test_parse_single_month(self):
+        """Test parsing a single month value."""
+        field = self.parser.parse_month("1")
+        assert field.raw_value == "1"
+        assert field.field_type == FieldType.MONTH
+        assert field.parsed_values == {1}
+
+    def test_parse_month_wildcard(self):
+        """Test parsing month wildcard."""
+        field = self.parser.parse_month("*")
+        assert field.raw_value == "*"
+        assert field.parsed_values == set(range(1, 13))
+        assert len(field.parsed_values) == 12
+
+    def test_parse_month_range(self):
+        """Test parsing month range."""
+        field = self.parser.parse_month("1-3")
+        assert field.parsed_values == {1, 2, 3}
+
+    def test_parse_month_list(self):
+        """Test parsing month list."""
+        field = self.parser.parse_month("1,6,12")
+        assert field.parsed_values == {1, 6, 12}
+
+    def test_parse_month_step_wildcard(self):
+        """Test parsing month step with wildcard."""
+        field = self.parser.parse_month("*/3")
+        assert field.parsed_values == {1, 4, 7, 10}
+
+    def test_parse_month_step_range(self):
+        """Test parsing month step with range."""
+        field = self.parser.parse_month("1-6/2")
+        assert field.parsed_values == {1, 3, 5}
+
+    def test_parse_month_complex(self):
+        """Test parsing complex month expression."""
+        field = self.parser.parse_month("1-3,6,9-12/3")
+        expected = {1, 2, 3, 6, 9, 12}
+        assert field.parsed_values == expected
+
+    def test_parse_month_max_value(self):
+        """Test parsing maximum month value."""
+        field = self.parser.parse_month("12")
+        assert field.parsed_values == {12}
+
+    def test_parse_month_out_of_range_high(self):
+        """Test parsing month value too high."""
+        with pytest.raises(FieldError, match="month.*out of range"):
+            self.parser.parse_month("13")
+
+    def test_parse_month_out_of_range_low(self):
+        """Test parsing month value too low."""
+        with pytest.raises(FieldError, match="month.*out of range"):
+            self.parser.parse_month("0")
+
+    def test_parse_month_invalid_range(self):
+        """Test parsing invalid month range."""
+        with pytest.raises(FieldError, match="start.*>.*end"):
+            self.parser.parse_month("6-3")
+
+    def test_parse_month_invalid_step(self):
+        """Test parsing invalid month step."""
+        with pytest.raises(FieldError, match="Step value must be positive"):
+            self.parser.parse_month("*/0")
+
+    def test_parse_month_empty(self):
+        """Test parsing empty month field."""
+        with pytest.raises(FieldError, match="Empty"):
+            self.parser.parse_month("")
+
+    def test_parse_month_name_jan(self):
+        """Test parsing JAN month name."""
+        field = self.parser.parse_month("JAN")
+        assert field.parsed_values == {1}
+
+    def test_parse_month_name_dec(self):
+        """Test parsing DEC month name."""
+        field = self.parser.parse_month("DEC")
+        assert field.parsed_values == {12}
+
+    def test_parse_month_name_range(self):
+        """Test parsing month name range."""
+        field = self.parser.parse_month("JAN-MAR")
+        assert field.parsed_values == {1, 2, 3}
+
+    def test_parse_month_name_list(self):
+        """Test parsing month name list."""
+        field = self.parser.parse_month("JAN,JUN,DEC")
+        assert field.parsed_values == {1, 6, 12}
+
+    def test_parse_month_name_mixed(self):
+        """Test parsing mixed month names and numbers."""
+        field = self.parser.parse_month("1,FEB,MAR,6")
+        assert field.parsed_values == {1, 2, 3, 6}
+
+    def test_parse_month_name_lowercase(self):
+        """Test parsing lowercase month names."""
+        field = self.parser.parse_month("jan,feb,mar")
+        assert field.parsed_values == {1, 2, 3}
+
+    def test_parse_month_name_mixed_case(self):
+        """Test parsing mixed case month names."""
+        field = self.parser.parse_month("Jan,Feb,Mar")
+        assert field.parsed_values == {1, 2, 3}
+
+    def test_parse_month_quarters(self):
+        """Test parsing quarterly months."""
+        field = self.parser.parse_month("1,4,7,10")
+        assert field.parsed_values == {1, 4, 7, 10}
+
+    def test_parse_month_summer(self):
+        """Test parsing summer months."""
+        field = self.parser.parse_month("JUN-AUG")
+        assert field.parsed_values == {6, 7, 8}
+
+    def test_parse_month_winter(self):
+        """Test parsing winter months."""
+        field = self.parser.parse_month("DEC,JAN,FEB")
+        assert field.parsed_values == {1, 2, 12}
+
+    def test_parse_month_step_from_single(self):
+        """Test parsing step from single month value."""
+        field = self.parser.parse_month("3/3")
+        # Should give 3, 6, 9, 12
+        assert field.parsed_values == {3, 6, 9, 12}
+
+    def test_parse_month_duplicates_removed(self):
+        """Test that duplicate month values are removed."""
+        field = self.parser.parse_month("1,1,6,6")
+        assert field.parsed_values == {1, 6}
+
+    def test_parse_month_all_names(self):
+        """Test parsing all month names."""
+        field = self.parser.parse_month("JAN,FEB,MAR,APR,MAY,JUN,JUL,AUG,SEP,OCT,NOV,DEC")
+        assert field.parsed_values == set(range(1, 13))
+
+    def test_parse_month_invalid_name(self):
+        """Test parsing invalid month name."""
+        # Invalid names should pass through and fail as invalid numbers
+        with pytest.raises(FieldError, match="not a number"):
+            self.parser.parse_month("JANUARY")

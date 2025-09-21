@@ -2,7 +2,7 @@
 
 from typing import List, Set
 
-from cronpal.constants import WILDCARD
+from cronpal.constants import MONTH_NAMES, WILDCARD
 from cronpal.exceptions import FieldError, ParseError
 from cronpal.models import CronField, FieldRange, FieldType, FIELD_RANGES
 
@@ -111,6 +111,61 @@ class FieldParser:
 
         except (ParseError, ValueError) as e:
             raise FieldError("day of month", str(e))
+
+    def parse_month(self, field_value: str) -> CronField:
+        """
+        Parse the month field of a cron expression.
+
+        Args:
+            field_value: The month field string (e.g., "1", "JAN", "JAN-MAR").
+
+        Returns:
+            CronField object with parsed values.
+
+        Raises:
+            FieldError: If the field value is invalid.
+        """
+        field_type = FieldType.MONTH
+        field_range = FIELD_RANGES[field_type]
+
+        try:
+            # Replace month names with numbers
+            normalized = self._normalize_month_names(field_value)
+
+            parsed_values = self._parse_field(
+                normalized,
+                field_range,
+                "month"
+            )
+
+            field = CronField(
+                raw_value=field_value,
+                field_type=field_type,
+                field_range=field_range
+            )
+            field.parsed_values = parsed_values
+            return field
+
+        except (ParseError, ValueError) as e:
+            raise FieldError("month", str(e))
+
+    def _normalize_month_names(self, field_value: str) -> str:
+        """
+        Replace month names with their numeric values.
+
+        Args:
+            field_value: The field value possibly containing month names.
+
+        Returns:
+            Field value with month names replaced by numbers.
+        """
+        normalized = field_value.upper()
+
+        # Replace month names with numbers
+        for name, number in MONTH_NAMES.items():
+            normalized = normalized.replace(name, str(number))
+
+        return normalized
 
     def _parse_field(
         self,
