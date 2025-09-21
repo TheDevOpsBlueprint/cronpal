@@ -101,14 +101,29 @@ def test_hour_field_parsing():
     assert "Values: [0, 4, 8, 12, 16, 20]" in output
 
 
-def test_both_minute_and_hour_parsing():
-    """Test parsing both minute and hour fields."""
+def test_day_of_month_field_parsing():
+    """Test that day of month field is parsed."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["*/30 9-17 * * *", "--verbose"])
+        result = main(["0 0 1,15 * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Day of month field: 1,15" in output
+    assert "Values: [1, 15]" in output
+
+
+def test_all_three_fields_parsing():
+    """Test parsing minute, hour, and day fields."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["*/30 9-17 1-7 * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
@@ -116,98 +131,101 @@ def test_both_minute_and_hour_parsing():
     assert "Values: [0, 30]" in output
     assert "Hour field: 9-17" in output
     assert "Values: [9, 10, 11, 12, 13, 14, 15, 16, 17]" in output
+    assert "Day of month field: 1-7" in output
+    assert "Values: [1, 2, 3, 4, 5, 6, 7]" in output
 
 
-def test_minute_field_range_parsing():
-    """Test parsing minute field with range."""
+def test_day_field_wildcard_parsing():
+    """Test parsing day field with wildcard."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["0-5 0 * * *", "--verbose"])
+        result = main(["0 0 * * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
-    assert "Minute field: 0-5" in output
-    assert "Values: [0, 1, 2, 3, 4, 5]" in output
+    assert "Day of month field: *" in output
+    # Should show truncated list for 31 values
+    assert "Total: 31 values" in output
 
 
-def test_hour_field_range_parsing():
-    """Test parsing hour field with range."""
+def test_day_field_range_parsing():
+    """Test parsing day field with range."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["0 8-18/2 * * *", "--verbose"])
+        result = main(["0 0 10-20 * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
-    assert "Hour field: 8-18/2" in output
-    assert "Values: [8, 10, 12, 14, 16, 18]" in output
+    assert "Day of month field: 10-20" in output
+    assert "Values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]" in output
 
 
-def test_minute_field_list_parsing():
-    """Test parsing minute field with list."""
+def test_day_field_step_parsing():
+    """Test parsing day field with step."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["0,15,30,45 0 * * *", "--verbose"])
+        result = main(["0 0 */5 * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
-    assert "Minute field: 0,15,30,45" in output
-    assert "Values: [0, 15, 30, 45]" in output
+    assert "Day of month field: */5" in output
+    assert "Values: [1, 6, 11, 16, 21, 26, 31]" in output
 
 
-def test_hour_field_list_parsing():
-    """Test parsing hour field with list."""
+def test_day_field_list_parsing():
+    """Test parsing day field with list."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["0 0,6,12,18 * * *", "--verbose"])
+        result = main(["0 0 1,10,20,30 * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
-    assert "Hour field: 0,6,12,18" in output
-    assert "Values: [0, 6, 12, 18]" in output
+    assert "Day of month field: 1,10,20,30" in output
+    assert "Values: [1, 10, 20, 30]" in output
 
 
-def test_minute_field_wildcard_parsing():
-    """Test parsing minute field with wildcard."""
+def test_day_field_invalid_value_zero():
+    """Test invalid day field value (0)."""
     import io
     import contextlib
 
-    f = io.StringIO()
-    with contextlib.redirect_stdout(f):
-        result = main(["* 0 * * *", "--verbose"])
+    f_err = io.StringIO()
 
-    output = f.getvalue()
-    assert result == 0
-    assert "Minute field: *" in output
-    # Should show truncated list for 60 values
-    assert "Total: 60 values" in output
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 0 * *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "day of month" in error_output.lower()
+    assert "out of range" in error_output.lower()
 
 
-def test_hour_field_wildcard_parsing():
-    """Test parsing hour field with wildcard."""
+def test_day_field_invalid_value_high():
+    """Test invalid day field value (32)."""
     import io
     import contextlib
 
-    f = io.StringIO()
-    with contextlib.redirect_stdout(f):
-        result = main(["0 * * * *", "--verbose"])
+    f_err = io.StringIO()
 
-    output = f.getvalue()
-    assert result == 0
-    assert "Hour field: *" in output
-    # Should show truncated list for 24 values
-    assert "Total: 24 values" in output
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 0 32 * *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "day of month" in error_output.lower()
+    assert "out of range" in error_output.lower()
 
 
 def test_minute_field_invalid_value():
@@ -283,7 +301,7 @@ def test_verbose_flag_valid():
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["0 0 * * *", "--verbose"])
+        result = main(["0 0 1 * *", "--verbose"])
 
     output = f.getvalue()
     assert result == 0
@@ -291,6 +309,7 @@ def test_verbose_flag_valid():
     assert "Validation: PASSED" in output
     assert "Minute field:" in output
     assert "Hour field:" in output
+    assert "Day of month field:" in output
 
 
 def test_verbose_flag_invalid():

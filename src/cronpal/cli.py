@@ -42,6 +42,7 @@ def main(args=None):
                 field_parser = FieldParser()
                 cron_expr.minute = field_parser.parse_minute(fields[0])
                 cron_expr.hour = field_parser.parse_hour(fields[1])
+                cron_expr.day_of_month = field_parser.parse_day_of_month(fields[2])
 
             print(f"✓ Valid cron expression: {cron_expr}")
 
@@ -58,6 +59,11 @@ def main(args=None):
                     print(f"  Hour field: {cron_expr.hour.raw_value}")
                     if cron_expr.hour.parsed_values:
                         _print_field_values("    ", cron_expr.hour.parsed_values)
+
+                if cron_expr.day_of_month:
+                    print(f"  Day of month field: {cron_expr.day_of_month.raw_value}")
+                    if cron_expr.day_of_month.parsed_values:
+                        _print_field_values("    ", cron_expr.day_of_month.parsed_values)
 
             return 0
 

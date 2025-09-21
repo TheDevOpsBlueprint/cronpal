@@ -78,6 +78,40 @@ class FieldParser:
         except (ParseError, ValueError) as e:
             raise FieldError("hour", str(e))
 
+    def parse_day_of_month(self, field_value: str) -> CronField:
+        """
+        Parse the day of month field of a cron expression.
+
+        Args:
+            field_value: The day field string (e.g., "1", "*/2", "1-15").
+
+        Returns:
+            CronField object with parsed values.
+
+        Raises:
+            FieldError: If the field value is invalid.
+        """
+        field_type = FieldType.DAY_OF_MONTH
+        field_range = FIELD_RANGES[field_type]
+
+        try:
+            parsed_values = self._parse_field(
+                field_value,
+                field_range,
+                "day of month"
+            )
+
+            field = CronField(
+                raw_value=field_value,
+                field_type=field_type,
+                field_range=field_range
+            )
+            field.parsed_values = parsed_values
+            return field
+
+        except (ParseError, ValueError) as e:
+            raise FieldError("day of month", str(e))
+
     def _parse_field(
         self,
         field_value: str,
