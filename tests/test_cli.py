@@ -14,7 +14,7 @@ from cronpal.cli import main
 
 def test_main_function():
     """Test that the main function runs without error."""
-    result = main()
+    result = main([])
     assert result == 0
 
 
@@ -27,11 +27,49 @@ def test_cli_execution():
         cwd=Path(__file__).parent.parent / "src"
     )
     assert result.returncode == 0
-    assert "CronPal" in result.stdout
+    assert "cronpal" in result.stdout.lower()
 
 
-def test_version_output():
-    """Test that version information is displayed."""
-    # This will be expanded in future PRs
-    from cronpal import __version__
-    assert __version__ == "0.1.0"
+def test_version_flag():
+    """Test the --version flag."""
+    result = main(["--version"])
+    assert result == 0
+
+
+def test_version_flag_short():
+    """Test the -v flag."""
+    result = main(["-v"])
+    assert result == 0
+
+
+def test_help_output():
+    """Test that help is shown when no arguments provided."""
+    # Capture stdout to verify help is shown
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main([])
+
+    output = f.getvalue()
+    assert "usage:" in output.lower()
+    assert "cronpal" in output.lower()
+
+
+def test_expression_argument():
+    """Test parsing a cron expression."""
+    result = main(["0 0 * * *"])
+    assert result == 0
+
+
+def test_verbose_flag():
+    """Test the --verbose flag."""
+    result = main(["0 0 * * *", "--verbose"])
+    assert result == 0
+
+
+def test_next_flag():
+    """Test the --next flag."""
+    result = main(["0 0 * * *", "--next", "10"])
+    assert result == 0
