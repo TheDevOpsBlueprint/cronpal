@@ -668,8 +668,9 @@ class TestParseDayOfWeek:
     def test_parse_day_of_week_step(self):
         """Test parsing day of week with step."""
         field = self.parser.parse_day_of_week("1/2")
-        # Should give 1, 3, 5 (Mon, Wed, Fri)
-        assert field.parsed_values == {1, 3, 5}
+        # Should give 1, 3, 5, 7 where 7 converts to 0
+        # So the result is {0, 1, 3, 5}
+        assert field.parsed_values == {0, 1, 3, 5}
 
     def test_parse_day_of_week_out_of_range_high(self):
         """Test parsing day value too high."""

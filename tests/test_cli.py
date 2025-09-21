@@ -163,7 +163,8 @@ def test_day_field_range_parsing():
     output = f.getvalue()
     assert result == 0
     assert "Day of month field: 10-20" in output
-    assert "Values: [10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20]" in output
+    # For 11 values, it should show truncated format
+    assert "Total: 11 values" in output
 
 
 def test_day_field_step_parsing():
