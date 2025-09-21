@@ -1,6 +1,6 @@
 """Validation functions for cron expressions."""
 
-from typing import List, Optional
+from typing import Dict, List, Optional
 
 from cronpal.constants import SPECIAL_STRINGS
 from cronpal.exceptions import InvalidCronExpression, ValidationError
@@ -20,9 +20,12 @@ def validate_expression_format(expression: str) -> List[str]:
         InvalidCronExpression: If the expression format is invalid.
     """
     if not expression:
-        raise InvalidCronExpression("Empty cron expression")
+        raise InvalidCronExpression("Empty cron expression provided")
 
     expression = expression.strip()
+
+    if not expression:
+        raise InvalidCronExpression("Empty cron expression after trimming whitespace")
 
     # Check for special strings
     if expression.startswith("@"):
@@ -33,8 +36,9 @@ def validate_expression_format(expression: str) -> List[str]:
                 return [expression]
             return SPECIAL_STRINGS[expression].split()
         else:
+            available = ", ".join(sorted(SPECIAL_STRINGS.keys()))
             raise InvalidCronExpression(
-                f"Unknown special string: {expression}"
+                f"Unknown special string: '{expression}'. Available: {available}"
             )
 
     # Split the expression into fields
@@ -43,7 +47,8 @@ def validate_expression_format(expression: str) -> List[str]:
     # Standard cron has 5 fields (minute hour day month weekday)
     if len(fields) != 5:
         raise InvalidCronExpression(
-            f"Invalid number of fields: expected 5, got {len(fields)}"
+            f"Invalid number of fields: expected 5, got {len(fields)}. "
+            f"Format should be: <minute> <hour> <day> <month> <weekday>"
         )
 
     return fields
@@ -70,9 +75,27 @@ def validate_field_characters(field: str, field_name: str) -> None:
     invalid_chars = set(field_upper) - valid_chars
 
     if invalid_chars:
+        char_list = ", ".join(f"'{c}'" for c in sorted(invalid_chars))
         raise ValidationError(
-            f"Invalid characters in {field_name}: {', '.join(invalid_chars)}"
+            f"Invalid characters in {field_name} field: {char_list}. "
+            f"Field value was: '{field}'"
         )
+
+
+def get_field_info() -> Dict[str, Dict[str, any]]:
+    """
+    Get information about cron fields.
+
+    Returns:
+        Dictionary with field information.
+    """
+    return {
+        "minute": {"range": "0-59", "position": 1},
+        "hour": {"range": "0-23", "position": 2},
+        "day_of_month": {"range": "1-31", "position": 3},
+        "month": {"range": "1-12", "position": 4},
+        "day_of_week": {"range": "0-7", "position": 5},
+    }
 
 
 def validate_expression(expression: str) -> bool:
@@ -87,6 +110,7 @@ def validate_expression(expression: str) -> bool:
 
     Raises:
         InvalidCronExpression: If validation fails.
+        ValidationError: If field validation fails.
     """
     fields = validate_expression_format(expression)
 
@@ -95,8 +119,16 @@ def validate_expression(expression: str) -> bool:
         return True
 
     field_names = ["minute", "hour", "day_of_month", "month", "day_of_week"]
+    field_info = get_field_info()
 
     for field, name in zip(fields, field_names):
-        validate_field_characters(field, name)
+        try:
+            validate_field_characters(field, name)
+        except ValidationError as e:
+            # Add field position and range info
+            info = field_info[name]
+            raise ValidationError(
+                f"{e} (Position {info['position']}, Valid range: {info['range']})"
+            )
 
     return True
