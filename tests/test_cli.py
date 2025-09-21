@@ -65,11 +65,34 @@ def test_expression_argument():
 
 def test_verbose_flag():
     """Test the --verbose flag."""
-    result = main(["0 0 * * *", "--verbose"])
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * *", "--verbose"])
+
+    output = f.getvalue()
     assert result == 0
+    assert "Raw expression:" in output
+    assert "Valid:" in output
 
 
 def test_next_flag():
     """Test the --next flag."""
     result = main(["0 0 * * *", "--next", "10"])
+    assert result == 0
+
+
+def test_cron_expression_object_usage():
+    """Test that CronExpression is used in the CLI."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["*/15 * * * *"])
+
+    output = f.getvalue()
+    assert "*/15 * * * *" in output
     assert result == 0
