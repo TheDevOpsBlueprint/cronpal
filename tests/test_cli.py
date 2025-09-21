@@ -44,7 +44,6 @@ def test_version_flag_short():
 
 def test_help_output():
     """Test that help is shown when no arguments provided."""
-    # Capture stdout to verify help is shown
     import io
     import contextlib
 
@@ -57,14 +56,37 @@ def test_help_output():
     assert "cronpal" in output.lower()
 
 
-def test_expression_argument():
-    """Test parsing a cron expression."""
-    result = main(["0 0 * * *"])
+def test_valid_expression():
+    """Test parsing a valid cron expression."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0 * * *"])
+
+    output = f.getvalue()
     assert result == 0
+    assert "✓ Valid" in output
+    assert "0 0 * * *" in output
 
 
-def test_verbose_flag():
-    """Test the --verbose flag."""
+def test_invalid_expression():
+    """Test parsing an invalid cron expression."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stderr(f):
+        result = main(["0 0 *"])
+
+    output = f.getvalue()
+    assert result == 1
+    assert "✗ Invalid" in output
+
+
+def test_verbose_flag_valid():
+    """Test the --verbose flag with valid expression."""
     import io
     import contextlib
 
@@ -75,7 +97,21 @@ def test_verbose_flag():
     output = f.getvalue()
     assert result == 0
     assert "Raw expression:" in output
-    assert "Valid:" in output
+    assert "Validation: PASSED" in output
+
+
+def test_verbose_flag_invalid():
+    """Test the --verbose flag with invalid expression."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stderr(f):
+        result = main(["invalid", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 1
+    assert "Expression: invalid" in output
 
 
 def test_next_flag():
@@ -84,15 +120,30 @@ def test_next_flag():
     assert result == 0
 
 
-def test_cron_expression_object_usage():
-    """Test that CronExpression is used in the CLI."""
+def test_special_string():
+    """Test parsing a special string."""
     import io
     import contextlib
 
     f = io.StringIO()
     with contextlib.redirect_stdout(f):
-        result = main(["*/15 * * * *"])
+        result = main(["@daily"])
 
     output = f.getvalue()
-    assert "*/15 * * * *" in output
     assert result == 0
+    assert "✓ Valid" in output
+    assert "@daily" in output
+
+
+def test_expression_with_invalid_characters():
+    """Test expression with invalid characters."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stderr(f):
+        result = main(["0 0 * * $"])
+
+    output = f.getvalue()
+    assert result == 1
+    assert "✗ Invalid" in output
