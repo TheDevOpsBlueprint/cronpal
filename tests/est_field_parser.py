@@ -127,6 +127,115 @@ class TestParseMinute:
         assert field.parsed_values == {0, 15, 30, 45}
 
 
+class TestParseHour:
+    """Tests for parsing hour field."""
+
+    def setup_method(self):
+        """Set up test fixtures."""
+        self.parser = FieldParser()
+
+    def test_parse_single_hour(self):
+        """Test parsing a single hour value."""
+        field = self.parser.parse_hour("0")
+        assert field.raw_value == "0"
+        assert field.field_type == FieldType.HOUR
+        assert field.parsed_values == {0}
+
+    def test_parse_hour_wildcard(self):
+        """Test parsing hour wildcard."""
+        field = self.parser.parse_hour("*")
+        assert field.raw_value == "*"
+        assert field.parsed_values == set(range(0, 24))
+        assert len(field.parsed_values) == 24
+
+    def test_parse_hour_range(self):
+        """Test parsing hour range."""
+        field = self.parser.parse_hour("9-17")
+        assert field.parsed_values == {9, 10, 11, 12, 13, 14, 15, 16, 17}
+
+    def test_parse_hour_list(self):
+        """Test parsing hour list."""
+        field = self.parser.parse_hour("0,6,12,18")
+        assert field.parsed_values == {0, 6, 12, 18}
+
+    def test_parse_hour_step_wildcard(self):
+        """Test parsing hour step with wildcard."""
+        field = self.parser.parse_hour("*/4")
+        assert field.parsed_values == {0, 4, 8, 12, 16, 20}
+
+    def test_parse_hour_step_range(self):
+        """Test parsing hour step with range."""
+        field = self.parser.parse_hour("8-18/2")
+        assert field.parsed_values == {8, 10, 12, 14, 16, 18}
+
+    def test_parse_hour_complex(self):
+        """Test parsing complex hour expression."""
+        field = self.parser.parse_hour("0-6,12,18-23/2")
+        expected = {0, 1, 2, 3, 4, 5, 6, 12, 18, 20, 22}
+        assert field.parsed_values == expected
+
+    def test_parse_hour_max_value(self):
+        """Test parsing maximum hour value."""
+        field = self.parser.parse_hour("23")
+        assert field.parsed_values == {23}
+
+    def test_parse_hour_out_of_range_high(self):
+        """Test parsing hour value too high."""
+        with pytest.raises(FieldError, match="hour.*out of range"):
+            self.parser.parse_hour("24")
+
+    def test_parse_hour_out_of_range_low(self):
+        """Test parsing negative hour value."""
+        with pytest.raises(FieldError, match="hour.*out of range"):
+            self.parser.parse_hour("-1")
+
+    def test_parse_hour_invalid_range(self):
+        """Test parsing invalid hour range."""
+        with pytest.raises(FieldError, match="start.*>.*end"):
+            self.parser.parse_hour("20-10")
+
+    def test_parse_hour_invalid_step(self):
+        """Test parsing invalid hour step."""
+        with pytest.raises(FieldError, match="Step value must be positive"):
+            self.parser.parse_hour("*/0")
+
+    def test_parse_hour_non_numeric(self):
+        """Test parsing non-numeric hour value."""
+        with pytest.raises(FieldError, match="not a number"):
+            self.parser.parse_hour("noon")
+
+    def test_parse_hour_empty(self):
+        """Test parsing empty hour field."""
+        with pytest.raises(FieldError, match="Empty"):
+            self.parser.parse_hour("")
+
+    def test_parse_hour_business_hours(self):
+        """Test parsing typical business hours."""
+        field = self.parser.parse_hour("9-17")
+        assert field.parsed_values == {9, 10, 11, 12, 13, 14, 15, 16, 17}
+
+    def test_parse_hour_every_two_hours(self):
+        """Test parsing every two hours."""
+        field = self.parser.parse_hour("*/2")
+        assert field.parsed_values == {0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22}
+
+    def test_parse_hour_night_shift(self):
+        """Test parsing night shift hours."""
+        field = self.parser.parse_hour("22,23,0,1,2,3,4,5,6")
+        assert field.parsed_values == {0, 1, 2, 3, 4, 5, 6, 22, 23}
+
+    def test_parse_hour_step_from_single(self):
+        """Test parsing step from single hour value."""
+        field = self.parser.parse_hour("8/3")
+        # Should give 8, 11, 14, 17, 20, 23
+        assert field.parsed_values == {8, 11, 14, 17, 20, 23}
+
+    def test_parse_hour_duplicates_removed(self):
+        """Test that duplicate hour values are removed."""
+        field = self.parser.parse_hour("0,0,12,12")
+        assert field.parsed_values == {0, 12}
+
+
 class TestFieldParserInternals:
     """Tests for internal parsing methods."""
 
@@ -135,6 +244,7 @@ class TestFieldParserInternals:
         self.parser = FieldParser()
         from cronpal.models import FIELD_RANGES
         self.minute_range = FIELD_RANGES[FieldType.MINUTE]
+        self.hour_range = FIELD_RANGES[FieldType.HOUR]
 
     def test_parse_single_valid(self):
         """Test _parse_single with valid value."""
@@ -181,3 +291,10 @@ class TestFieldParserInternals:
         result = self.parser._parse_field("*", self.minute_range, "minute")
         assert result == set(range(0, 60))
         assert len(result) == 60
+
+    def test_hour_range_boundaries(self):
+        """Test hour range boundaries."""
+        result = self.parser._parse_field("*", self.hour_range, "hour")
+        assert min(result) == 0
+        assert max(result) == 23
+        assert len(result) == 24

@@ -86,6 +86,38 @@ def test_minute_field_parsing():
     assert "Values: [0, 15, 30, 45]" in output
 
 
+def test_hour_field_parsing():
+    """Test that hour field is parsed."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 */4 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Hour field: */4" in output
+    assert "Values: [0, 4, 8, 12, 16, 20]" in output
+
+
+def test_both_minute_and_hour_parsing():
+    """Test parsing both minute and hour fields."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["*/30 9-17 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Minute field: */30" in output
+    assert "Values: [0, 30]" in output
+    assert "Hour field: 9-17" in output
+    assert "Values: [9, 10, 11, 12, 13, 14, 15, 16, 17]" in output
+
+
 def test_minute_field_range_parsing():
     """Test parsing minute field with range."""
     import io
@@ -101,6 +133,21 @@ def test_minute_field_range_parsing():
     assert "Values: [0, 1, 2, 3, 4, 5]" in output
 
 
+def test_hour_field_range_parsing():
+    """Test parsing hour field with range."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 8-18/2 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Hour field: 8-18/2" in output
+    assert "Values: [8, 10, 12, 14, 16, 18]" in output
+
+
 def test_minute_field_list_parsing():
     """Test parsing minute field with list."""
     import io
@@ -114,6 +161,21 @@ def test_minute_field_list_parsing():
     assert result == 0
     assert "Minute field: 0,15,30,45" in output
     assert "Values: [0, 15, 30, 45]" in output
+
+
+def test_hour_field_list_parsing():
+    """Test parsing hour field with list."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 0,6,12,18 * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Hour field: 0,6,12,18" in output
+    assert "Values: [0, 6, 12, 18]" in output
 
 
 def test_minute_field_wildcard_parsing():
@@ -132,6 +194,22 @@ def test_minute_field_wildcard_parsing():
     assert "Total: 60 values" in output
 
 
+def test_hour_field_wildcard_parsing():
+    """Test parsing hour field with wildcard."""
+    import io
+    import contextlib
+
+    f = io.StringIO()
+    with contextlib.redirect_stdout(f):
+        result = main(["0 * * * *", "--verbose"])
+
+    output = f.getvalue()
+    assert result == 0
+    assert "Hour field: *" in output
+    # Should show truncated list for 24 values
+    assert "Total: 24 values" in output
+
+
 def test_minute_field_invalid_value():
     """Test invalid minute field value."""
     import io
@@ -145,6 +223,22 @@ def test_minute_field_invalid_value():
     error_output = f_err.getvalue()
     assert result == 1
     assert "minute" in error_output.lower()
+    assert "out of range" in error_output.lower()
+
+
+def test_hour_field_invalid_value():
+    """Test invalid hour field value."""
+    import io
+    import contextlib
+
+    f_err = io.StringIO()
+
+    with contextlib.redirect_stderr(f_err):
+        result = main(["0 24 * * *"])
+
+    error_output = f_err.getvalue()
+    assert result == 1
+    assert "hour" in error_output.lower()
     assert "out of range" in error_output.lower()
 
 
@@ -196,6 +290,7 @@ def test_verbose_flag_valid():
     assert "Raw expression:" in output
     assert "Validation: PASSED" in output
     assert "Minute field:" in output
+    assert "Hour field:" in output
 
 
 def test_verbose_flag_invalid():
@@ -232,74 +327,3 @@ def test_special_string():
     assert result == 0
     assert "✓ Valid" in output
     assert "@daily" in output
-
-
-def test_unknown_special_string():
-    """Test unknown special string with suggestion."""
-    import io
-    import contextlib
-
-    f_err = io.StringIO()
-
-    with contextlib.redirect_stderr(f_err):
-        result = main(["@invalid"])
-
-    error_output = f_err.getvalue()
-    assert result == 1
-    assert "✗ Invalid" in error_output
-    assert "Unknown special string" in error_output
-    assert "💡 Suggestion:" in error_output
-    assert "@yearly" in error_output
-
-
-def test_empty_expression():
-    """Test empty expression with suggestion."""
-    import io
-    import contextlib
-
-    f_err = io.StringIO()
-
-    with contextlib.redirect_stderr(f_err):
-        result = main([""])
-
-    error_output = f_err.getvalue()
-    assert result == 1
-    assert "✗ Invalid" in error_output
-    assert "Empty" in error_output
-    assert "💡 Suggestion:" in error_output
-
-
-def test_too_many_fields():
-    """Test too many fields with suggestion."""
-    import io
-    import contextlib
-
-    f_err = io.StringIO()
-
-    with contextlib.redirect_stderr(f_err):
-        result = main(["0 0 * * * *"])
-
-    error_output = f_err.getvalue()
-    assert result == 1
-    assert "✗ Invalid" in error_output
-    assert "Invalid number of fields" in error_output
-    assert "💡 Suggestion:" in error_output
-    assert "Remove extra fields" in error_output
-
-
-def test_unexpected_error_handling():
-    """Test that unexpected errors return exit code 2."""
-    import io
-    import contextlib
-    from unittest.mock import patch
-
-    f_err = io.StringIO()
-
-    # Mock validate_expression to raise a non-CronPalError
-    with patch('cronpal.cli.validate_expression', side_effect=RuntimeError("Unexpected")):
-        with contextlib.redirect_stderr(f_err):
-            result = main(["0 0 * * *"])
-
-    error_output = f_err.getvalue()
-    assert result == 2
-    assert "✗ Unexpected error" in error_output

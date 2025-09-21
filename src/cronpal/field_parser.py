@@ -44,11 +44,45 @@ class FieldParser:
         except (ParseError, ValueError) as e:
             raise FieldError("minute", str(e))
 
+    def parse_hour(self, field_value: str) -> CronField:
+        """
+        Parse the hour field of a cron expression.
+
+        Args:
+            field_value: The hour field string (e.g., "0", "*/2", "9-17").
+
+        Returns:
+            CronField object with parsed values.
+
+        Raises:
+            FieldError: If the field value is invalid.
+        """
+        field_type = FieldType.HOUR
+        field_range = FIELD_RANGES[field_type]
+
+        try:
+            parsed_values = self._parse_field(
+                field_value,
+                field_range,
+                "hour"
+            )
+
+            field = CronField(
+                raw_value=field_value,
+                field_type=field_type,
+                field_range=field_range
+            )
+            field.parsed_values = parsed_values
+            return field
+
+        except (ParseError, ValueError) as e:
+            raise FieldError("hour", str(e))
+
     def _parse_field(
-            self,
-            field_value: str,
-            field_range: FieldRange,
-            field_name: str
+        self,
+        field_value: str,
+        field_range: FieldRange,
+        field_name: str
     ) -> Set[int]:
         """
         Parse a field value into a set of integers.
@@ -91,10 +125,10 @@ class FieldParser:
         return values
 
     def _parse_single(
-            self,
-            value_str: str,
-            field_range: FieldRange,
-            field_name: str
+        self,
+        value_str: str,
+        field_range: FieldRange,
+        field_name: str
     ) -> int:
         """
         Parse a single numeric value.
@@ -126,10 +160,10 @@ class FieldParser:
         return value
 
     def _parse_range(
-            self,
-            range_str: str,
-            field_range: FieldRange,
-            field_name: str
+        self,
+        range_str: str,
+        field_range: FieldRange,
+        field_name: str
     ) -> Set[int]:
         """
         Parse a range expression (e.g., "0-30").
@@ -163,10 +197,10 @@ class FieldParser:
         return set(range(start, end + 1))
 
     def _parse_step(
-            self,
-            step_str: str,
-            field_range: FieldRange,
-            field_name: str
+        self,
+        step_str: str,
+        field_range: FieldRange,
+        field_name: str
     ) -> Set[int]:
         """
         Parse a step expression (e.g., "*/5" or "0-30/5").
