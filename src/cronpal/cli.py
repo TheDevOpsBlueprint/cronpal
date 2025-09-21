@@ -37,10 +37,11 @@ def main(args=None):
             # Create a CronExpression object
             cron_expr = CronExpression(parsed_args.expression)
 
-            # Parse minute field if not a special expression
+            # Parse fields if not a special expression
             if len(fields) == 5:
                 field_parser = FieldParser()
                 cron_expr.minute = field_parser.parse_minute(fields[0])
+                cron_expr.hour = field_parser.parse_hour(fields[1])
 
             print(f"✓ Valid cron expression: {cron_expr}")
 
@@ -51,12 +52,12 @@ def main(args=None):
                 if cron_expr.minute:
                     print(f"  Minute field: {cron_expr.minute.raw_value}")
                     if cron_expr.minute.parsed_values:
-                        values = sorted(cron_expr.minute.parsed_values)
-                        if len(values) <= 10:
-                            print(f"    Values: {values}")
-                        else:
-                            print(f"    Values: {values[:5]} ... {values[-5:]}")
-                            print(f"    Total: {len(values)} values")
+                        _print_field_values("    ", cron_expr.minute.parsed_values)
+
+                if cron_expr.hour:
+                    print(f"  Hour field: {cron_expr.hour.raw_value}")
+                    if cron_expr.hour.parsed_values:
+                        _print_field_values("    ", cron_expr.hour.parsed_values)
 
             return 0
 
@@ -79,6 +80,22 @@ def main(args=None):
     # If no arguments provided, show help
     parser.print_help()
     return 0
+
+
+def _print_field_values(prefix: str, values: set):
+    """
+    Print field values in a nice format.
+
+    Args:
+        prefix: Prefix for each line.
+        values: Set of values to print.
+    """
+    sorted_values = sorted(values)
+    if len(sorted_values) <= 10:
+        print(f"{prefix}Values: {sorted_values}")
+    else:
+        print(f"{prefix}Values: {sorted_values[:5]} ... {sorted_values[-5:]}")
+        print(f"{prefix}Total: {len(sorted_values)} values")
 
 
 if __name__ == "__main__":

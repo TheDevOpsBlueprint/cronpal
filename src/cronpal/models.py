@@ -81,19 +81,27 @@ class CronExpression:
             self.day_of_week is not None
         ])
 
-    def matches_time(self, minute: int) -> bool:
+    def matches_time(self, minute: int, hour: Optional[int] = None) -> bool:
         """
-        Check if this expression matches a given minute.
+        Check if this expression matches a given time.
 
         Args:
             minute: The minute value to check (0-59).
+            hour: The hour value to check (0-23).
 
         Returns:
-            True if the minute matches.
+            True if the time matches.
         """
         if self.minute is None:
             return False
-        return self.minute.matches(minute)
+
+        minute_match = self.minute.matches(minute)
+
+        if hour is not None and self.hour is not None:
+            hour_match = self.hour.matches(hour)
+            return minute_match and hour_match
+
+        return minute_match
 
 
 # Define valid ranges for each field type
