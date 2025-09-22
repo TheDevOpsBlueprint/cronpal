@@ -15,6 +15,7 @@ from cronpal.exceptions import (
 from cronpal.field_parser import FieldParser
 from cronpal.models import CronExpression, CronField, FieldType
 from cronpal.parser import create_parser
+from cronpal.scheduler import CronScheduler
 from cronpal.special_parser import SpecialStringParser
 from cronpal.validators import validate_expression
 
@@ -25,6 +26,7 @@ __all__ = [
     "FieldType",
     "FieldParser",
     "SpecialStringParser",
+    "CronScheduler",
     "validate_expression",
     "CronPalError",
     "InvalidCronExpression",

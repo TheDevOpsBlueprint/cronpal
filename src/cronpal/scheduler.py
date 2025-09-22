@@ -1,7 +1,7 @@
 """Scheduler for calculating cron expression run times."""
 
 from datetime import datetime, timedelta
-from typing import Optional
+from typing import List, Optional
 
 from cronpal.exceptions import CronPalError
 from cronpal.models import CronExpression
@@ -66,6 +66,38 @@ class CronScheduler:
             current = self._advance_to_next_possible(current)
 
         raise CronPalError("Could not find next run time within reasonable limits")
+
+    def get_next_runs(self, count: int, after: Optional[datetime] = None) -> List[datetime]:
+        """
+        Calculate multiple next run times for the cron expression.
+
+        Args:
+            count: Number of next run times to calculate.
+            after: The datetime to start searching from.
+                   Defaults to current time if not provided.
+
+        Returns:
+            List of next run times.
+
+        Raises:
+            ValueError: If count is less than 1.
+        """
+        if count < 1:
+            raise ValueError("Count must be at least 1")
+
+        if after is None:
+            after = datetime.now()
+
+        runs = []
+        current = after
+
+        for _ in range(count):
+            next_run = self.get_next_run(current)
+            runs.append(next_run)
+            # Start next search 1 minute after the found time
+            current = next_run + timedelta(minutes=1)
+
+        return runs
 
     def _matches_time(self, dt: datetime) -> bool:
         """
@@ -200,7 +232,7 @@ class CronScheduler:
                 break
 
             test_dt = dt.replace(day=day, hour=first_hour, minute=first_minute,
-                                 second=0, microsecond=0)
+                                second=0, microsecond=0)
 
             # Check if this day matches day constraints
             day_of_month_match = day in self.cron_expr.day_of_month.parsed_values

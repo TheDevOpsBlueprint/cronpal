@@ -2,12 +2,14 @@
 """Main CLI entry point for CronPal."""
 
 import sys
+from datetime import datetime
 
 from cronpal.error_handler import ErrorHandler, suggest_fix
 from cronpal.exceptions import CronPalError
 from cronpal.field_parser import FieldParser
 from cronpal.models import CronExpression
 from cronpal.parser import create_parser
+from cronpal.scheduler import CronScheduler
 from cronpal.special_parser import SpecialStringParser
 from cronpal.validators import validate_expression, validate_expression_format
 
@@ -69,6 +71,10 @@ def main(args=None):
                     print(f"  Raw expression: {cron_expr.raw_expression}")
                     print(f"  Validation: PASSED")
                     _print_verbose_fields(cron_expr)
+
+            # Show next run times if requested
+            if parsed_args.next is not None:
+                _print_next_runs(cron_expr, parsed_args.next)
 
             return 0
 
@@ -177,6 +183,63 @@ def _print_day_names(prefix: str, values: set):
 
     if len(names) <= 7:
         print(f"{prefix}Days: {', '.join(names)}")
+
+
+def _print_next_runs(cron_expr: CronExpression, count: int):
+    """
+    Print the next run times for a cron expression.
+
+    Args:
+        cron_expr: The CronExpression to calculate runs for.
+        count: Number of next runs to show.
+    """
+    # Don't show next runs for @reboot
+    if cron_expr.raw_expression.lower() == "@reboot":
+        print("\nNext runs: @reboot only runs at system startup")
+        return
+
+    # Make sure we have parsed fields
+    if not cron_expr.is_valid():
+        print("\nNext runs: Cannot calculate - incomplete expression")
+        return
+
+    try:
+        scheduler = CronScheduler(cron_expr)
+        next_runs = scheduler.get_next_runs(count)
+
+        print(f"\nNext {count} run{'s' if count != 1 else ''}:")
+        for i, run_time in enumerate(next_runs, 1):
+            # Format the datetime nicely
+            formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
+
+            # Add relative time for first few entries
+            if i <= 3:
+                now = datetime.now()
+                delta = run_time - now
+
+                if delta.days == 0:
+                    if delta.seconds < 3600:
+                        minutes = delta.seconds // 60
+                        relative = f"in {minutes} minute{'s' if minutes != 1 else ''}"
+                    else:
+                        hours = delta.seconds // 3600
+                        relative = f"in {hours} hour{'s' if hours != 1 else ''}"
+                elif delta.days == 1:
+                    relative = "tomorrow"
+                elif delta.days < 7:
+                    relative = f"in {delta.days} days"
+                else:
+                    relative = ""
+
+                if relative:
+                    print(f"  {i}. {formatted} ({relative})")
+                else:
+                    print(f"  {i}. {formatted}")
+            else:
+                print(f"  {i}. {formatted}")
+
+    except Exception as e:
+        print(f"\nNext runs: Error calculating - {e}")
 
 
 if __name__ == "__main__":
