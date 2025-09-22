@@ -18,6 +18,19 @@ def get_next_minute(dt: datetime) -> datetime:
     return dt + timedelta(minutes=1)
 
 
+def get_previous_minute(dt: datetime) -> datetime:
+    """
+    Get the previous minute from the given datetime.
+
+    Args:
+        dt: The datetime to decrement.
+
+    Returns:
+        A datetime object representing the previous minute.
+    """
+    return dt - timedelta(minutes=1)
+
+
 def get_next_hour(dt: datetime) -> datetime:
     """
     Get the next hour from the given datetime (minute set to 0).
@@ -32,6 +45,20 @@ def get_next_hour(dt: datetime) -> datetime:
     return next_hour + timedelta(hours=1)
 
 
+def get_previous_hour(dt: datetime) -> datetime:
+    """
+    Get the previous hour from the given datetime (minute set to 59).
+
+    Args:
+        dt: The datetime to decrement.
+
+    Returns:
+        A datetime object at the end of the previous hour.
+    """
+    prev_hour = dt.replace(minute=59, second=0, microsecond=0)
+    return prev_hour - timedelta(hours=1)
+
+
 def get_next_day(dt: datetime) -> datetime:
     """
     Get the next day from the given datetime (time set to 00:00).
@@ -44,6 +71,20 @@ def get_next_day(dt: datetime) -> datetime:
     """
     next_day = dt.replace(hour=0, minute=0, second=0, microsecond=0)
     return next_day + timedelta(days=1)
+
+
+def get_previous_day(dt: datetime) -> datetime:
+    """
+    Get the previous day from the given datetime (time set to 23:59).
+
+    Args:
+        dt: The datetime to decrement.
+
+    Returns:
+        A datetime object at the end of the previous day.
+    """
+    prev_day = dt.replace(hour=23, minute=59, second=0, microsecond=0)
+    return prev_day - timedelta(days=1)
 
 
 def get_next_month(dt: datetime) -> datetime:
@@ -67,6 +108,29 @@ def get_next_month(dt: datetime) -> datetime:
     return datetime(year, month, 1, 0, 0, 0, 0)
 
 
+def get_previous_month(dt: datetime) -> datetime:
+    """
+    Get the last day of the previous month.
+
+    Args:
+        dt: The datetime to decrement.
+
+    Returns:
+        A datetime object at the end of the previous month.
+    """
+    # Calculate previous month
+    year = dt.year
+    month = dt.month - 1
+
+    if month < 1:
+        month = 12
+        year -= 1
+
+    # Get last day of previous month
+    last_day = get_days_in_month(year, month)
+    return datetime(year, month, last_day, 23, 59, 0, 0)
+
+
 def get_next_year(dt: datetime) -> datetime:
     """
     Get the first day of the next year.
@@ -78,6 +142,19 @@ def get_next_year(dt: datetime) -> datetime:
         A datetime object at the start of the next year.
     """
     return datetime(dt.year + 1, 1, 1, 0, 0, 0, 0)
+
+
+def get_previous_year(dt: datetime) -> datetime:
+    """
+    Get the last day of the previous year.
+
+    Args:
+        dt: The datetime to decrement.
+
+    Returns:
+        A datetime object at the end of the previous year.
+    """
+    return datetime(dt.year - 1, 12, 31, 23, 59, 0, 0)
 
 
 def get_days_in_month(year: int, month: int) -> int:
@@ -167,6 +244,19 @@ def round_to_next_minute(dt: datetime) -> datetime:
     if dt.second > 0 or dt.microsecond > 0:
         return normalize_datetime(dt) + timedelta(minutes=1)
     return dt
+
+
+def round_to_previous_minute(dt: datetime) -> datetime:
+    """
+    Round a datetime down to the previous minute, removing seconds/microseconds.
+
+    Args:
+        dt: The datetime to round.
+
+    Returns:
+        A datetime rounded down to the minute.
+    """
+    return dt.replace(second=0, microsecond=0)
 
 
 def is_valid_day_in_month(year: int, month: int, day: int) -> bool:

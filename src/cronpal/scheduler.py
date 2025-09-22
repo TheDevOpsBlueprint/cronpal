@@ -10,9 +10,14 @@ from cronpal.time_utils import (
     get_next_hour,
     get_next_minute,
     get_next_month,
+    get_previous_day,
+    get_previous_hour,
+    get_previous_minute,
+    get_previous_month,
     get_weekday,
     is_valid_day_in_month,
     round_to_next_minute,
+    round_to_previous_minute,
 )
 
 
@@ -99,6 +104,71 @@ class CronScheduler:
 
         return runs
 
+    def get_previous_run(self, before: Optional[datetime] = None) -> datetime:
+        """
+        Calculate the previous run time for the cron expression.
+
+        Args:
+            before: The datetime to start searching from.
+                    Defaults to current time if not provided.
+
+        Returns:
+            The previous datetime when the cron expression ran.
+        """
+        if before is None:
+            before = datetime.now()
+
+        # Round down to previous minute if needed
+        current = round_to_previous_minute(before)
+
+        # Maximum iterations to prevent infinite loops
+        max_iterations = 10000
+        iterations = 0
+
+        while iterations < max_iterations:
+            iterations += 1
+
+            # Check if current time matches the cron expression
+            if self._matches_time(current):
+                return current
+
+            # Move to previous possible time
+            current = self._retreat_to_previous_possible(current)
+
+        raise CronPalError("Could not find previous run time within reasonable limits")
+
+    def get_previous_runs(self, count: int, before: Optional[datetime] = None) -> List[datetime]:
+        """
+        Calculate multiple previous run times for the cron expression.
+
+        Args:
+            count: Number of previous run times to calculate.
+            before: The datetime to start searching from.
+                    Defaults to current time if not provided.
+
+        Returns:
+            List of previous run times (most recent first).
+
+        Raises:
+            ValueError: If count is less than 1.
+        """
+        if count < 1:
+            raise ValueError("Count must be at least 1")
+
+        if before is None:
+            before = datetime.now()
+
+        runs = []
+        current = before
+
+        for _ in range(count):
+            previous_run = self.get_previous_run(current)
+            runs.append(previous_run)
+            # Start next search 1 minute before the found time
+            current = previous_run - timedelta(minutes=1)
+
+        return runs
+
     def _matches_time(self, dt: datetime) -> bool:
         """
         Check if a datetime matches the cron expression.
@@ -166,6 +236,34 @@ class CronScheduler:
         # If no valid day this month, try next month
         return self._get_next_month(dt)
 
+    def _retreat_to_previous_possible(self, dt: datetime) -> datetime:
+        """
+        Retreat datetime to the previous possible matching time.
+
+        Args:
+            dt: The current datetime.
+
+        Returns:
+            The previous datetime that could potentially match.
+        """
+        # Try to retreat minute first
+        prev_minute = self._get_previous_minute(dt)
+        if prev_minute is not None:
+            return prev_minute
+
+        # If no valid minute in this hour, try previous hour
+        prev_hour = self._get_previous_hour(dt)
+        if prev_hour is not None:
+            return prev_hour
+
+        # If no valid hour today, try previous day
+        prev_day = self._get_previous_day(dt)
+        if prev_day is not None:
+            return prev_day
+
+        # If no valid day this month, try previous month
+        return self._get_previous_month(dt)
+
     def _get_next_minute(self, dt: datetime) -> Optional[datetime]:
         """
         Get the next valid minute after the current time.
@@ -181,6 +279,25 @@ class CronScheduler:
 
         for minute in valid_minutes:
             if minute > current_minute:
+                return dt.replace(minute=minute, second=0, microsecond=0)
+
+        return None
+
+    def _get_previous_minute(self, dt: datetime) -> Optional[datetime]:
+        """
+        Get the previous valid minute before the current time.
+
+        Args:
+            dt: The current datetime.
+
+        Returns:
+            Previous valid minute in the same hour, or None if no valid minute.
+        """
+        current_minute = dt.minute
+        valid_minutes = sorted(self.cron_expr.minute.parsed_values, reverse=True)
+
+        for minute in valid_minutes:
+            if minute < current_minute:
                 return dt.replace(minute=minute, second=0, microsecond=0)
 
         return None
@@ -208,6 +325,29 @@ class CronScheduler:
 
         return None
 
+    def _get_previous_hour(self, dt: datetime) -> Optional[datetime]:
+        """
+        Get the previous valid hour before the current time.
+
+        Args:
+            dt: The current datetime.
+
+        Returns:
+            Previous valid hour in the same day, or None if no valid hour.
+        """
+        current_hour = dt.hour
+        valid_hours = sorted(self.cron_expr.hour.parsed_values, reverse=True)
+        valid_minutes = sorted(self.cron_expr.minute.parsed_values, reverse=True)
+
+        # Last minute of the previous valid hour
+        last_minute = valid_minutes[0] if valid_minutes else 59
+
+        for hour in valid_hours:
+            if hour < current_hour:
+                return dt.replace(hour=hour, minute=last_minute, second=0, microsecond=0)
+
+        return None
+
     def _get_next_day(self, dt: datetime) -> Optional[datetime]:
         """
         Get the next valid day after the current time.
@@ -232,6 +372,43 @@ class CronScheduler:
                 break
 
             test_dt = dt.replace(day=day, hour=first_hour, minute=first_minute,
+                                second=0, microsecond=0)
+
+            # Check if this day matches day constraints
+            day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
+            day_of_week_match = get_weekday(test_dt) in self.cron_expr.day_of_week.parsed_values
+
+            # Apply OR logic for day fields if both are restricted
+            if not self.cron_expr.day_of_month.is_wildcard() and not self.cron_expr.day_of_week.is_wildcard():
+                if day_of_month_match or day_of_week_match:
+                    return test_dt
+            else:
+                if day_of_month_match and day_of_week_match:
+                    return test_dt
+
+        return None
+
+    def _get_previous_day(self, dt: datetime) -> Optional[datetime]:
+        """
+        Get the previous valid day before the current time.
+
+        Args:
+            dt: The current datetime.
+
+        Returns:
+            Previous valid day in the same month, or None if no valid day.
+        """
+        current_day = dt.day
+        valid_hours = sorted(self.cron_expr.hour.parsed_values, reverse=True)
+        valid_minutes = sorted(self.cron_expr.minute.parsed_values, reverse=True)
+
+        # Last time of the day
+        last_hour = valid_hours[0] if valid_hours else 23
+        last_minute = valid_minutes[0] if valid_minutes else 59
+
+        # Check previous days in the month
+        for day in range(current_day - 1, 0, -1):
+            test_dt = dt.replace(day=day, hour=last_hour, minute=last_minute,
                                 second=0, microsecond=0)
 
             # Check if this day matches day constraints
@@ -303,3 +480,59 @@ class CronScheduler:
 
         # This should rarely happen unless the cron expression is very restrictive
         raise CronPalError("Could not find valid next month")
+
+    def _get_previous_month(self, dt: datetime) -> datetime:
+        """
+        Get the last valid time in the previous valid month.
+
+        Args:
+            dt: The current datetime.
+
+        Returns:
+            Last valid time in the previous valid month.
+        """
+        valid_months = sorted(self.cron_expr.month.parsed_values, reverse=True)
+        valid_hours = sorted(self.cron_expr.hour.parsed_values, reverse=True)
+        valid_minutes = sorted(self.cron_expr.minute.parsed_values, reverse=True)
+
+        # Last time of any day
+        last_hour = valid_hours[0] if valid_hours else 23
+        last_minute = valid_minutes[0] if valid_minutes else 59
+
+        # Start searching from current year
+        current_year = dt.year
+        current_month = dt.month
+
+        # Search for up to 10 years back
+        for year_offset in range(10):
+            search_year = current_year - year_offset
+
+            # Determine which months to check this year
+            if year_offset == 0:
+                # For current year, only check months before current month
+                months_to_check = [m for m in valid_months if m < current_month]
+            else:
+                # For past years, check all valid months
+                months_to_check = valid_months
+
+            for month in months_to_check:
+                # Find last valid day in this month
+                for day in range(31, 0, -1):
+                    if not is_valid_day_in_month(search_year, month, day):
+                        continue
+
+                    test_dt = datetime(search_year, month, day, last_hour, last_minute, 0, 0)
+
+                    # Check day constraints
+                    day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
+                    day_of_week_match = get_weekday(test_dt) in self.cron_expr.day_of_week.parsed_values
+
+                    if not self.cron_expr.day_of_month.is_wildcard() and not self.cron_expr.day_of_week.is_wildcard():
+                        if day_of_month_match or day_of_week_match:
+                            return test_dt
+                    else:
+                        if day_of_month_match and day_of_week_match:
+                            return test_dt
+
+        # This should rarely happen unless the cron expression is very restrictive
+        raise CronPalError("Could not find valid previous month")
