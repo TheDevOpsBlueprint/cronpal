@@ -18,6 +18,7 @@ def create_parser():
               cronpal --version                 # Show version
               cronpal --help                    # Show this help message
               cronpal "0 0 * * *" --timezone "US/Eastern"  # Use specific timezone
+              cronpal "0 0 * * *" --pretty     # Pretty print the expression
 
             Cron Expression Format:
               ┌───────────── minute (0-59)
@@ -75,6 +76,12 @@ def create_parser():
         "--list-timezones",
         action="store_true",
         help="List all available timezone names"
+    )
+
+    parser.add_argument(
+        "--pretty",
+        action="store_true",
+        help="Pretty print the cron expression with formatted output"
     )
 
     return parser
