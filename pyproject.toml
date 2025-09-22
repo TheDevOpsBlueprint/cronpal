@@ -26,7 +26,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
 ]
 
-dependencies = []
+dependencies = [
+    "pytz>=2023.3",
+]
 
 [project.optional-dependencies]
 dev = [
