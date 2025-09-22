@@ -19,6 +19,7 @@ def create_parser():
               cronpal --help                    # Show this help message
               cronpal "0 0 * * *" --timezone "US/Eastern"  # Use specific timezone
               cronpal "0 0 * * *" --pretty     # Pretty print the expression
+              cronpal "0 0 * * *" --no-color   # Disable colored output
 
             Cron Expression Format:
               ┌───────────── minute (0-59)
@@ -82,6 +83,12 @@ def create_parser():
         "--pretty",
         action="store_true",
         help="Pretty print the cron expression with formatted output"
+    )
+
+    parser.add_argument(
+        "--no-color",
+        action="store_true",
+        help="Disable colored output"
     )
 
     return parser
