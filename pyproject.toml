@@ -28,6 +28,7 @@ classifiers = [
 
 dependencies = [
     "pytz>=2023.3",
+    "colorama>=0.4.6",
 ]
 
 [project.optional-dependencies]

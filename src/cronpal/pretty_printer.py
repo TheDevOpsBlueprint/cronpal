@@ -2,20 +2,23 @@
 
 from typing import List, Optional, Set
 
+from cronpal.color_utils import ColorConfig, get_color_config
 from cronpal.models import CronExpression, CronField, FieldType
 
 
 class PrettyPrinter:
     """Pretty printer for cron expressions."""
 
-    def __init__(self, expression: CronExpression):
+    def __init__(self, expression: CronExpression, use_colors: bool = True):
         """
         Initialize the pretty printer.
 
         Args:
             expression: The CronExpression to pretty print.
+            use_colors: Whether to use colored output.
         """
         self.expression = expression
+        self.color_config = ColorConfig(use_colors=use_colors) if use_colors else get_color_config()
 
     def print_table(self) -> str:
         """
@@ -25,15 +28,18 @@ class PrettyPrinter:
             A string containing the formatted table.
         """
         lines = []
+        c = self.color_config  # Shorthand
 
         # Header
-        lines.append("┌" + "─" * 78 + "┐")
-        lines.append(f"│ {'Cron Expression Analysis':^76} │")
-        lines.append("├" + "─" * 78 + "┤")
-        lines.append(f"│ Expression: {self.expression.raw_expression:<63} │")
-        lines.append("├" + "─" * 17 + "┬" + "─" * 15 + "┬" + "─" * 44 + "┤")
-        lines.append("│ Field           │ Value         │ Description                                │")
-        lines.append("├" + "─" * 17 + "┼" + "─" * 15 + "┼" + "─" * 44 + "┤")
+        lines.append(c.separator("┌" + "─" * 78 + "┐"))
+        lines.append(c.separator("│") + c.header(f" {'Cron Expression Analysis':^76} ") + c.separator("│"))
+        lines.append(c.separator("├" + "─" * 78 + "┤"))
+        lines.append(c.separator("│") + f" Expression: {c.value(self.expression.raw_expression):<63} " + c.separator("│"))
+        lines.append(c.separator("├" + "─" * 17 + "┬" + "─" * 15 + "┬" + "─" * 44 + "┤"))
+        lines.append(c.separator("│") + c.header(" Field           ") + c.separator("│") +
+                    c.header(" Value         ") + c.separator("│") +
+                    c.header(" Description                                ") + c.separator("│"))
+        lines.append(c.separator("├" + "─" * 17 + "┼" + "─" * 15 + "┼" + "─" * 44 + "┤"))
 
         # Fields
         if self.expression.minute:
@@ -52,7 +58,7 @@ class PrettyPrinter:
             lines.append(self._format_field_row("Day of Week", self.expression.day_of_week))
 
         # Footer
-        lines.append("└" + "─" * 17 + "┴" + "─" * 15 + "┴" + "─" * 44 + "┘")
+        lines.append(self.color_config.separator("└" + "─" * 17 + "┴" + "─" * 15 + "┴" + "─" * 44 + "┘"))
 
         return "\n".join(lines)
 
@@ -64,23 +70,35 @@ class PrettyPrinter:
             A string containing the simple formatted output.
         """
         lines = []
-        lines.append(f"Cron Expression: {self.expression.raw_expression}")
-        lines.append("-" * 50)
+        c = self.color_config
+
+        lines.append(c.header("Cron Expression: ") + c.value(self.expression.raw_expression))
+        lines.append(c.separator("-" * 50))
 
         if self.expression.minute:
-            lines.append(f"Minute:       {self.expression.minute.raw_value:10} {self._describe_field(self.expression.minute)}")
+            lines.append(c.field("Minute:       ") +
+                        c.value(f"{self.expression.minute.raw_value:10}") + " " +
+                        c.info(self._describe_field(self.expression.minute)))
 
         if self.expression.hour:
-            lines.append(f"Hour:         {self.expression.hour.raw_value:10} {self._describe_field(self.expression.hour)}")
+            lines.append(c.field("Hour:         ") +
+                        c.value(f"{self.expression.hour.raw_value:10}") + " " +
+                        c.info(self._describe_field(self.expression.hour)))
 
         if self.expression.day_of_month:
-            lines.append(f"Day of Month: {self.expression.day_of_month.raw_value:10} {self._describe_field(self.expression.day_of_month)}")
+            lines.append(c.field("Day of Month: ") +
+                        c.value(f"{self.expression.day_of_month.raw_value:10}") + " " +
+                        c.info(self._describe_field(self.expression.day_of_month)))
 
         if self.expression.month:
-            lines.append(f"Month:        {self.expression.month.raw_value:10} {self._describe_field(self.expression.month)}")
+            lines.append(c.field("Month:        ") +
+                        c.value(f"{self.expression.month.raw_value:10}") + " " +
+                        c.info(self._describe_field(self.expression.month)))
 
         if self.expression.day_of_week:
-            lines.append(f"Day of Week:  {self.expression.day_of_week.raw_value:10} {self._describe_field(self.expression.day_of_week)}")
+            lines.append(c.field("Day of Week:  ") +
+                        c.value(f"{self.expression.day_of_week.raw_value:10}") + " " +
+                        c.info(self._describe_field(self.expression.day_of_week)))
 
         return "\n".join(lines)
 
@@ -92,9 +110,11 @@ class PrettyPrinter:
             A string containing the detailed output.
         """
         lines = []
-        lines.append("═" * 80)
-        lines.append(f" CRON EXPRESSION: {self.expression.raw_expression}")
-        lines.append("═" * 80)
+        c = self.color_config
+
+        lines.append(c.separator("═" * 80))
+        lines.append(c.header(f" CRON EXPRESSION: {self.expression.raw_expression}"))
+        lines.append(c.separator("═" * 80))
 
         if self.expression.minute:
             lines.extend(self._format_detailed_field("MINUTE", self.expression.minute))
@@ -111,7 +131,7 @@ class PrettyPrinter:
         if self.expression.day_of_week:
             lines.extend(self._format_detailed_field("DAY OF WEEK", self.expression.day_of_week))
 
-        lines.append("═" * 80)
+        lines.append(c.separator("═" * 80))
 
         return "\n".join(lines)
 
@@ -172,26 +192,31 @@ class PrettyPrinter:
 
     def _format_field_row(self, name: str, field: CronField) -> str:
         """Format a single field row for the table."""
+        c = self.color_config
         description = self._describe_field(field)
         # Truncate description if too long
         if len(description) > 42:
             description = description[:39] + "..."
 
-        return f"│ {name:<15} │ {field.raw_value:<13} │ {description:<42} │"
+        return (c.separator("│") + " " + c.field(f"{name:<15}") + " " + c.separator("│") + " " +
+                c.value(f"{field.raw_value:<13}") + " " + c.separator("│") + " " +
+                c.info(f"{description:<42}") + " " + c.separator("│"))
 
     def _format_detailed_field(self, name: str, field: CronField) -> List[str]:
         """Format detailed field information."""
         lines = []
+        c = self.color_config
+
         lines.append("")
-        lines.append(f"▸ {name}")
-        lines.append("  " + "─" * 76)
-        lines.append(f"  Raw Value:    {field.raw_value}")
-        lines.append(f"  Range:        {field.field_range.min_value}-{field.field_range.max_value}")
-        lines.append(f"  Description:  {self._describe_field(field)}")
+        lines.append(c.header(f"▸ {name}"))
+        lines.append("  " + c.separator("─" * 76))
+        lines.append(f"  {c.field('Raw Value:'):12} {c.value(field.raw_value)}")
+        lines.append(f"  {c.field('Range:'):12} {c.info(f'{field.field_range.min_value}-{field.field_range.max_value}')}")
+        lines.append(f"  {c.field('Description:'):12} {c.info(self._describe_field(field))}")
 
         if field.parsed_values:
             values_str = self._format_value_list(field.parsed_values, field.field_type)
-            lines.append(f"  Values:       {values_str}")
+            lines.append(f"  {c.field('Values:'):12} {c.highlight(values_str)}")
 
         return lines
 
