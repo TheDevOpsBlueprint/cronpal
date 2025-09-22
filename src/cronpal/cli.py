@@ -40,7 +40,7 @@ def main(args=None):
                 # Parse as special string
                 cron_expr = special_parser.parse(parsed_args.expression)
 
-                print(f"✓ Valid cron expression: {cron_expr}")
+                print(f"✔ Valid cron expression: {cron_expr}")
 
                 if parsed_args.verbose:
                     print(f"  Special string: {cron_expr.raw_expression}")
@@ -65,7 +65,7 @@ def main(args=None):
                 cron_expr.month = field_parser.parse_month(fields[3])
                 cron_expr.day_of_week = field_parser.parse_day_of_week(fields[4])
 
-                print(f"✓ Valid cron expression: {cron_expr}")
+                print(f"✔ Valid cron expression: {cron_expr}")
 
                 if parsed_args.verbose:
                     print(f"  Raw expression: {cron_expr.raw_expression}")
@@ -75,6 +75,10 @@ def main(args=None):
             # Show next run times if requested
             if parsed_args.next is not None:
                 _print_next_runs(cron_expr, parsed_args.next)
+
+            # Show previous run times if requested
+            if parsed_args.previous is not None:
+                _print_previous_runs(cron_expr, parsed_args.previous)
 
             return 0
 
@@ -240,6 +244,63 @@ def _print_next_runs(cron_expr: CronExpression, count: int):
 
     except Exception as e:
         print(f"\nNext runs: Error calculating - {e}")
+
+
+def _print_previous_runs(cron_expr: CronExpression, count: int):
+    """
+    Print the previous run times for a cron expression.
+
+    Args:
+        cron_expr: The CronExpression to calculate runs for.
+        count: Number of previous runs to show.
+    """
+    # Don't show previous runs for @reboot
+    if cron_expr.raw_expression.lower() == "@reboot":
+        print("\nPrevious runs: @reboot only runs at system startup")
+        return
+
+    # Make sure we have parsed fields
+    if not cron_expr.is_valid():
+        print("\nPrevious runs: Cannot calculate - incomplete expression")
+        return
+
+    try:
+        scheduler = CronScheduler(cron_expr)
+        previous_runs = scheduler.get_previous_runs(count)
+
+        print(f"\nPrevious {count} run{'s' if count != 1 else ''} (most recent first):")
+        for i, run_time in enumerate(previous_runs, 1):
+            # Format the datetime nicely
+            formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
+
+            # Add relative time for first few entries
+            if i <= 3:
+                now = datetime.now()
+                delta = now - run_time
+
+                if delta.days == 0:
+                    if delta.seconds < 3600:
+                        minutes = delta.seconds // 60
+                        relative = f"{minutes} minute{'s' if minutes != 1 else ''} ago"
+                    else:
+                        hours = delta.seconds // 3600
+                        relative = f"{hours} hour{'s' if hours != 1 else ''} ago"
+                elif delta.days == 1:
+                    relative = "yesterday"
+                elif delta.days < 7:
+                    relative = f"{delta.days} days ago"
+                else:
+                    relative = ""
+
+                if relative:
+                    print(f"  {i}. {formatted} ({relative})")
+                else:
+                    print(f"  {i}. {formatted}")
+            else:
+                print(f"  {i}. {formatted}")
+
+    except Exception as e:
+        print(f"\nPrevious runs: Error calculating - {e}")
 
 
 if __name__ == "__main__":

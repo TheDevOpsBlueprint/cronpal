@@ -56,4 +56,11 @@ def create_parser():
         help="Show next N execution times (default: 5)"
     )
 
+    parser.add_argument(
+        "-p", "--previous",
+        type=int,
+        metavar="N",
+        help="Show previous N execution times"
+    )
+
     return parser
