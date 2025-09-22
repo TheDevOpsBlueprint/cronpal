@@ -266,15 +266,29 @@ class CronScheduler:
         first_hour = valid_hours[0] if valid_hours else 0
         first_minute = valid_minutes[0] if valid_minutes else 0
 
-        # Try remaining months this year
-        for month in valid_months:
-            if month > dt.month:
+        # Start searching from current year
+        current_year = dt.year
+        current_month = dt.month
+
+        # Search for up to 10 years to handle February 29th cases
+        for year_offset in range(10):
+            search_year = current_year + year_offset
+
+            # Determine which months to check this year
+            if year_offset == 0:
+                # For current year, only check months after current month
+                months_to_check = [m for m in valid_months if m > current_month]
+            else:
+                # For future years, check all valid months
+                months_to_check = valid_months
+
+            for month in months_to_check:
                 # Find first valid day in this month
                 for day in range(1, 32):
-                    if not is_valid_day_in_month(dt.year, month, day):
-                        break
+                    if not is_valid_day_in_month(search_year, month, day):
+                        continue
 
-                    test_dt = datetime(dt.year, month, day, first_hour, first_minute, 0, 0)
+                    test_dt = datetime(search_year, month, day, first_hour, first_minute, 0, 0)
 
                     # Check day constraints
                     day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
@@ -286,28 +300,6 @@ class CronScheduler:
                     else:
                         if day_of_month_match and day_of_week_match:
                             return test_dt
-
-        # No valid month found this year, try next year
-        next_year = dt.year + 1
-        first_month = valid_months[0]
-
-        # Find first valid day in the first month of next year
-        for day in range(1, 32):
-            if not is_valid_day_in_month(next_year, first_month, day):
-                break
-
-            test_dt = datetime(next_year, first_month, day, first_hour, first_minute, 0, 0)
-
-            # Check day constraints
-            day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
-            day_of_week_match = get_weekday(test_dt) in self.cron_expr.day_of_week.parsed_values
-
-            if not self.cron_expr.day_of_month.is_wildcard() and not self.cron_expr.day_of_week.is_wildcard():
-                if day_of_month_match or day_of_week_match:
-                    return test_dt
-            else:
-                if day_of_month_match and day_of_week_match:
-                    return test_dt
 
         # This should rarely happen unless the cron expression is very restrictive
         raise CronPalError("Could not find valid next month")
