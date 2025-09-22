@@ -9,6 +9,7 @@ from cronpal.exceptions import CronPalError
 from cronpal.field_parser import FieldParser
 from cronpal.models import CronExpression
 from cronpal.parser import create_parser
+from cronpal.pretty_printer import PrettyPrinter
 from cronpal.scheduler import CronScheduler
 from cronpal.special_parser import SpecialStringParser
 from cronpal.timezone_utils import (
@@ -69,16 +70,33 @@ def main(args=None):
                 # Parse as special string
                 cron_expr = special_parser.parse(parsed_args.expression)
 
-                print(f"✔ Valid cron expression: {cron_expr}")
+                if parsed_args.pretty:
+                    # Pretty print mode
+                    if cron_expr.raw_expression.lower() == "@reboot":
+                        print("\n✔ Valid cron expression: @reboot")
+                        print("\nThis expression runs at system startup/reboot only.")
+                    else:
+                        printer = PrettyPrinter(cron_expr)
+                        print()
+                        print(printer.print_table())
+                        print()
+                        print(f"Summary: {printer.get_summary()}")
 
-                if parsed_args.verbose:
-                    print(f"  Special string: {cron_expr.raw_expression}")
-                    description = special_parser.get_description(cron_expr.raw_expression)
-                    print(f"  Description: {description}")
+                        if parsed_args.verbose:
+                            print()
+                            print(printer.print_detailed())
+                else:
+                    # Normal output
+                    print(f"✔ Valid cron expression: {cron_expr}")
 
-                    # For @reboot, we don't have fields to show
-                    if cron_expr.raw_expression.lower() != "@reboot":
-                        _print_verbose_fields(cron_expr)
+                    if parsed_args.verbose:
+                        print(f"  Special string: {cron_expr.raw_expression}")
+                        description = special_parser.get_description(cron_expr.raw_expression)
+                        print(f"  Description: {description}")
+
+                        # For @reboot, we don't have fields to show
+                        if cron_expr.raw_expression.lower() != "@reboot":
+                            _print_verbose_fields(cron_expr)
             else:
                 # Parse the expression into fields
                 fields = validate_expression_format(parsed_args.expression)
@@ -94,12 +112,25 @@ def main(args=None):
                 cron_expr.month = field_parser.parse_month(fields[3])
                 cron_expr.day_of_week = field_parser.parse_day_of_week(fields[4])
 
-                print(f"✔ Valid cron expression: {cron_expr}")
+                if parsed_args.pretty:
+                    # Pretty print mode
+                    printer = PrettyPrinter(cron_expr)
+                    print()
+                    print(printer.print_table())
+                    print()
+                    print(f"Summary: {printer.get_summary()}")
 
-                if parsed_args.verbose:
-                    print(f"  Raw expression: {cron_expr.raw_expression}")
-                    print(f"  Validation: PASSED")
-                    _print_verbose_fields(cron_expr)
+                    if parsed_args.verbose:
+                        print()
+                        print(printer.print_detailed())
+                else:
+                    # Normal output
+                    print(f"✔ Valid cron expression: {cron_expr}")
+
+                    if parsed_args.verbose:
+                        print(f"  Raw expression: {cron_expr.raw_expression}")
+                        print(f"  Validation: PASSED")
+                        _print_verbose_fields(cron_expr)
 
             # Show next run times if requested
             if parsed_args.next is not None:
