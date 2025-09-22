@@ -11,6 +11,14 @@ from cronpal.models import CronExpression
 from cronpal.parser import create_parser
 from cronpal.scheduler import CronScheduler
 from cronpal.special_parser import SpecialStringParser
+from cronpal.timezone_utils import (
+    format_datetime_with_timezone,
+    get_current_time,
+    get_timezone,
+    get_timezone_abbreviation,
+    get_timezone_offset,
+    list_common_timezones,
+)
 from cronpal.validators import validate_expression, validate_expression_format
 
 
@@ -25,12 +33,33 @@ def main(args=None):
         print(f"cronpal {__version__}")
         return 0
 
+    # Handle list timezones flag
+    if parsed_args.list_timezones:
+        print("Available timezones:")
+        timezones = list_common_timezones()
+        for tz in timezones:
+            print(f"  {tz}")
+        print(f"\nTotal: {len(timezones)} timezones")
+        return 0
+
     # Handle cron expression
     if parsed_args.expression:
         # Create error handler
         error_handler = ErrorHandler(verbose=parsed_args.verbose)
 
         try:
+            # Get timezone if specified
+            timezone = None
+            if parsed_args.timezone:
+                try:
+                    timezone = get_timezone(parsed_args.timezone)
+                    current_time = get_current_time(timezone)
+                    tz_offset = get_timezone_offset(timezone, current_time)
+                    tz_abbrev = get_timezone_abbreviation(timezone, current_time)
+                    print(f"Using timezone: {parsed_args.timezone} ({tz_abbrev} {tz_offset})")
+                except ValueError as e:
+                    raise CronPalError(f"Invalid timezone: {e}")
+
             # Validate the expression first
             validate_expression(parsed_args.expression)
 
@@ -74,11 +103,11 @@ def main(args=None):
 
             # Show next run times if requested
             if parsed_args.next is not None:
-                _print_next_runs(cron_expr, parsed_args.next)
+                _print_next_runs(cron_expr, parsed_args.next, timezone)
 
             # Show previous run times if requested
             if parsed_args.previous is not None:
-                _print_previous_runs(cron_expr, parsed_args.previous)
+                _print_previous_runs(cron_expr, parsed_args.previous, timezone)
 
             return 0
 
@@ -189,13 +218,14 @@ def _print_day_names(prefix: str, values: set):
         print(f"{prefix}Days: {', '.join(names)}")
 
 
-def _print_next_runs(cron_expr: CronExpression, count: int):
+def _print_next_runs(cron_expr: CronExpression, count: int, timezone=None):
     """
     Print the next run times for a cron expression.
 
     Args:
         cron_expr: The CronExpression to calculate runs for.
         count: Number of next runs to show.
+        timezone: Optional timezone for calculations.
     """
     # Don't show next runs for @reboot
     if cron_expr.raw_expression.lower() == "@reboot":
@@ -208,17 +238,20 @@ def _print_next_runs(cron_expr: CronExpression, count: int):
         return
 
     try:
-        scheduler = CronScheduler(cron_expr)
+        scheduler = CronScheduler(cron_expr, timezone)
         next_runs = scheduler.get_next_runs(count)
 
         print(f"\nNext {count} run{'s' if count != 1 else ''}:")
         for i, run_time in enumerate(next_runs, 1):
-            # Format the datetime nicely
-            formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
+            # Format the datetime with timezone info
+            if timezone:
+                formatted = format_datetime_with_timezone(run_time, timezone)
+            else:
+                formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
 
             # Add relative time for first few entries
             if i <= 3:
-                now = datetime.now()
+                now = get_current_time(timezone)
                 delta = run_time - now
 
                 if delta.days == 0:
@@ -246,13 +279,14 @@ def _print_next_runs(cron_expr: CronExpression, count: int):
         print(f"\nNext runs: Error calculating - {e}")
 
 
-def _print_previous_runs(cron_expr: CronExpression, count: int):
+def _print_previous_runs(cron_expr: CronExpression, count: int, timezone=None):
     """
     Print the previous run times for a cron expression.
 
     Args:
         cron_expr: The CronExpression to calculate runs for.
         count: Number of previous runs to show.
+        timezone: Optional timezone for calculations.
     """
     # Don't show previous runs for @reboot
     if cron_expr.raw_expression.lower() == "@reboot":
@@ -265,17 +299,20 @@ def _print_previous_runs(cron_expr: CronExpression, count: int):
         return
 
     try:
-        scheduler = CronScheduler(cron_expr)
+        scheduler = CronScheduler(cron_expr, timezone)
         previous_runs = scheduler.get_previous_runs(count)
 
         print(f"\nPrevious {count} run{'s' if count != 1 else ''} (most recent first):")
         for i, run_time in enumerate(previous_runs, 1):
-            # Format the datetime nicely
-            formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
+            # Format the datetime with timezone info
+            if timezone:
+                formatted = format_datetime_with_timezone(run_time, timezone)
+            else:
+                formatted = run_time.strftime("%Y-%m-%d %H:%M:%S %A")
 
             # Add relative time for first few entries
             if i <= 3:
-                now = datetime.now()
+                now = get_current_time(timezone)
                 delta = now - run_time
 
                 if delta.days == 0:

@@ -1,7 +1,9 @@
 """Scheduler for calculating cron expression run times."""
 
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List, Optional, Union
+
+import pytz
 
 from cronpal.exceptions import CronPalError
 from cronpal.models import CronExpression
@@ -19,20 +21,32 @@ from cronpal.time_utils import (
     round_to_next_minute,
     round_to_previous_minute,
 )
+from cronpal.timezone_utils import convert_to_timezone, get_current_time, get_timezone
 
 
 class CronScheduler:
     """Calculator for cron expression run times."""
 
-    def __init__(self, cron_expr: CronExpression):
+    def __init__(self, cron_expr: CronExpression, timezone: Optional[Union[str, pytz.tzinfo.BaseTzInfo]] = None):
         """
         Initialize the scheduler with a cron expression.
 
         Args:
             cron_expr: The CronExpression to calculate times for.
+            timezone: The timezone to use for calculations.
+                     Can be a string (e.g., 'US/Eastern') or timezone object.
+                     If None, uses system local timezone.
         """
         self.cron_expr = cron_expr
         self._validate_expression()
+
+        # Set timezone
+        if timezone is None:
+            self.timezone = get_timezone(None)
+        elif isinstance(timezone, str):
+            self.timezone = get_timezone(timezone)
+        else:
+            self.timezone = timezone
 
     def _validate_expression(self):
         """Validate that the expression has all required fields."""
@@ -45,13 +59,17 @@ class CronScheduler:
 
         Args:
             after: The datetime to start searching from.
+                   Can be naive (will use scheduler's timezone) or aware.
                    Defaults to current time if not provided.
 
         Returns:
-            The next datetime when the cron expression will run.
+            The next datetime when the cron expression will run (timezone-aware).
         """
         if after is None:
-            after = datetime.now()
+            after = get_current_time(self.timezone)
+        else:
+            # Convert to scheduler's timezone if needed
+            after = convert_to_timezone(after, self.timezone)
 
         # Round up to next minute if needed
         current = round_to_next_minute(after)
@@ -79,10 +97,11 @@ class CronScheduler:
         Args:
             count: Number of next run times to calculate.
             after: The datetime to start searching from.
+                   Can be naive (will use scheduler's timezone) or aware.
                    Defaults to current time if not provided.
 
         Returns:
-            List of next run times.
+            List of next run times (all timezone-aware).
 
         Raises:
             ValueError: If count is less than 1.
@@ -91,7 +110,9 @@ class CronScheduler:
             raise ValueError("Count must be at least 1")
 
         if after is None:
-            after = datetime.now()
+            after = get_current_time(self.timezone)
+        else:
+            after = convert_to_timezone(after, self.timezone)
 
         runs = []
         current = after
@@ -110,13 +131,17 @@ class CronScheduler:
 
         Args:
             before: The datetime to start searching from.
+                    Can be naive (will use scheduler's timezone) or aware.
                     Defaults to current time if not provided.
 
         Returns:
-            The previous datetime when the cron expression ran.
+            The previous datetime when the cron expression ran (timezone-aware).
         """
         if before is None:
-            before = datetime.now()
+            before = get_current_time(self.timezone)
+        else:
+            # Convert to scheduler's timezone if needed
+            before = convert_to_timezone(before, self.timezone)
 
         # Round down to previous minute if needed
         current = round_to_previous_minute(before)
@@ -144,10 +169,11 @@ class CronScheduler:
         Args:
             count: Number of previous run times to calculate.
             before: The datetime to start searching from.
+                    Can be naive (will use scheduler's timezone) or aware.
                     Defaults to current time if not provided.
 
         Returns:
-            List of previous run times (most recent first).
+            List of previous run times (most recent first, all timezone-aware).
 
         Raises:
             ValueError: If count is less than 1.
@@ -156,7 +182,9 @@ class CronScheduler:
             raise ValueError("Count must be at least 1")
 
         if before is None:
-            before = datetime.now()
+            before = get_current_time(self.timezone)
+        else:
+            before = convert_to_timezone(before, self.timezone)
 
         runs = []
         current = before
@@ -174,11 +202,15 @@ class CronScheduler:
         Check if a datetime matches the cron expression.
 
         Args:
-            dt: The datetime to check.
+            dt: The datetime to check (should be in scheduler's timezone).
 
         Returns:
             True if the datetime matches all cron fields.
         """
+        # Ensure datetime is in the scheduler's timezone
+        if dt.tzinfo != self.timezone:
+            dt = convert_to_timezone(dt, self.timezone)
+
         # Check minute
         if dt.minute not in self.cron_expr.minute.parsed_values:
             return False
@@ -213,7 +245,7 @@ class CronScheduler:
         Advance datetime to the next possible matching time.
 
         Args:
-            dt: The current datetime.
+            dt: The current datetime (in scheduler's timezone).
 
         Returns:
             The next datetime that could potentially match.
@@ -241,7 +273,7 @@ class CronScheduler:
         Retreat datetime to the previous possible matching time.
 
         Args:
-            dt: The current datetime.
+            dt: The current datetime (in scheduler's timezone).
 
         Returns:
             The previous datetime that could potentially match.
@@ -465,7 +497,10 @@ class CronScheduler:
                     if not is_valid_day_in_month(search_year, month, day):
                         continue
 
-                    test_dt = datetime(search_year, month, day, first_hour, first_minute, 0, 0)
+                    # Create datetime in the scheduler's timezone
+                    test_dt = self.timezone.localize(
+                        datetime(search_year, month, day, first_hour, first_minute, 0, 0)
+                    )
 
                     # Check day constraints
                     day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
@@ -521,7 +556,10 @@ class CronScheduler:
                     if not is_valid_day_in_month(search_year, month, day):
                         continue
 
-                    test_dt = datetime(search_year, month, day, last_hour, last_minute, 0, 0)
+                    # Create datetime in the scheduler's timezone
+                    test_dt = self.timezone.localize(
+                        datetime(search_year, month, day, last_hour, last_minute, 0, 0)
+                    )
 
                     # Check day constraints
                     day_of_month_match = day in self.cron_expr.day_of_month.parsed_values
